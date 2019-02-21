@@ -10,10 +10,7 @@ val coreSettings = Seq(
       "-unchecked",
       "-encoding",
       "UTF-8",
-      "-language:existentials",
-      "-language:implicitConversions",
-      "-language:postfixOps",
-      "-language:higherKinds"
+      "-language:_"
     ) ++ {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2L, scalaMajor)) if scalaMajor == 12 =>
@@ -31,7 +28,7 @@ val coreSettings = Seq(
     false
   },
   pomExtra := {
-    <url>https://github.com/j5ik2o/scala-ddd-base</url>
+    <url>https://github.com/j5ik2o/akka-kafka-persistence</url>
       <licenses>
         <license>
           <name>The MIT License</name>
@@ -39,9 +36,9 @@ val coreSettings = Seq(
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:j5ik2o/scala-ddd-base.git</url>
-        <connection>scm:git:github.com/j5ik2o/scala-ddd-base</connection>
-        <developerConnection>scm:git:git@github.com:j5ik2o/scala-ddd-base.git</developerConnection>
+        <url>git@github.com:j5ik2o/akka-kafka-persistence.git</url>
+        <connection>scm:git:github.com/j5ik2o/akka-kafka-persistence</connection>
+        <developerConnection>scm:git:git@github.com:j5ik2o/akka-kafka-persistence.git</developerConnection>
       </scm>
       <developers>
         <developer>
