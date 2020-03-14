@@ -12,7 +12,6 @@ val coreSettings = Seq(
       "-feature",
       "-deprecation",
       "-unchecked",
-      "-Ypartial-unification",
       "-encoding",
       "UTF-8",
       "-language:_"
@@ -60,6 +59,7 @@ val coreSettings = Seq(
       "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/"
     ),
   libraryDependencies ++= Seq(
+      "com.iheart"         %% "ficus"                  % "1.4.7",
       "org.typelevel"      %% "cats-core"              % "2.0.0",
       "org.typelevel"      %% "cats-free"              % "2.0.0",
       "com.beachape"       %% "enumeratum"             % "1.5.13",
