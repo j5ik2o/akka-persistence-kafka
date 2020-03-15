@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option java_package = "com.github.j5ik2o.akka.persistence.kafka.journal";
+option optimize_for = SPEED;
+
+message JournalFormat {
+   string persistence_id = 1;
+   int64 sequence_number = 2;
+   bool deleted = 3;
+   string manifest = 4;
+   string writer_uuid = 5;
+   int64 timestamp = 6;
+   PayloadFormat payload = 7;
+   repeated string tags = 8;
+}
+
+message PayloadFormat {
+   int32 serializer_id = 1;
+   bytes data = 2;
+   bool has_data_manifest = 3;
+   bytes data_manifest = 4;
+}
