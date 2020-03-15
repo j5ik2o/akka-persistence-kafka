@@ -81,6 +81,9 @@ val coreSettings = Seq(
       "com.typesafe.akka"  %% "akka-persistence-tck"   % akkaVersion % Test,
       "com.typesafe.akka"  %% "akka-testkit"           % akkaVersion % Test,
       "ch.qos.logback"     % "logback-classic"         % "1.2.3" % Test
+    ),
+  PB.targets in Compile := Seq(
+      scalapb.gen() -> (sourceManaged in Compile).value
     )
 )
 
