@@ -238,22 +238,16 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       Duration.ofMillis(500)
     ).map { m => serialization.deserialize(m.value(), classOf[Journal]).get }
   }
+
   override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] =
-    Future(readHighestSequenceNr(persistenceId, fromSequenceNr))
+    Future {
+      val topic     = getTopic(PersistenceId(persistenceId))
+      val partition = getPartition(PersistenceId(persistenceId))
+      val tp        = new TopicPartition(topic, partition)
+      consumer.assign(List(tp).asJava)
+      consumer.seek(tp, fromSequenceNr)
+      val result = consumer.endOffsets(List(tp).asJava).get(tp)
+      Math.max(result, 0)
+    }
 
-  private def readHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Long = {
-    val topic = getTopic(PersistenceId(persistenceId))
-    Math.max(nextOffsetFor(topic, getPartition(PersistenceId(persistenceId)), Some(fromSequenceNr)), 0)
-  }
-
-  private def nextOffsetFor(topic: String, partition: Int, offset: Option[Long]): Long = {
-    val _consumer = consumerSettings.createKafkaConsumer()
-    val tp        = new TopicPartition(topic, partition)
-    _consumer.assign(List(tp).asJava)
-//    offset
-//      .foreach { o => consumer.seek(tp, o) }
-    val result = _consumer.endOffsets(List(tp).asJava).get(tp)
-    log.info("nextOffsetFor = {}", result)
-    result
-  }
 }
