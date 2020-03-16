@@ -2,22 +2,19 @@ package com.github.j5ik2o.akka.persistence.kafka.journal
 
 import java.time.Duration
 
-import java.time.Duration
-
-import org.apache.kafka.clients.consumer.{ ConsumerRecord, KafkaConsumer }
+import org.apache.kafka.clients.consumer.{ Consumer, ConsumerRecord, KafkaConsumer }
 import org.apache.kafka.common.TopicPartition
 
 import scala.jdk.CollectionConverters._
 
 class MessageIterator(
-    consumerConfig: Map[String, Object],
+    consumer: Consumer[String, Array[Byte]],
     topic: String,
     partition: Int,
     offset: Long,
     timeOut: Duration
 ) extends Iterator[ConsumerRecord[String, Array[Byte]]] {
 
-  private val consumer                                            = new KafkaConsumer[String, Array[Byte]](consumerConfig.asJava)
   private var iter: Iterator[ConsumerRecord[String, Array[Byte]]] = iterator(offset)
   private var readMessages                                        = 0
   private var nextOffset: Long                                    = offset
@@ -50,7 +47,7 @@ class MessageIterator(
       hasNext
     }
 
-  def close(): Unit = {
+  private def close(): Unit = {
     consumer.close()
   }
 }

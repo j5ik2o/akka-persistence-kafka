@@ -30,7 +30,7 @@ val coreSettings = Seq(
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false },
   pomExtra := {
-    <url>https://github.com/j5ik2o/akka-kafka-persistence</url>
+    <url>https://github.com/j5ik2o/akka-persistence-kafka-awesome</url>
       <licenses>
         <license>
           <name>The MIT License</name>
@@ -38,9 +38,9 @@ val coreSettings = Seq(
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:j5ik2o/akka-kafka-persistence.git</url>
-        <connection>scm:git:github.com/j5ik2o/akka-kafka-persistence</connection>
-        <developerConnection>scm:git:git@github.com:j5ik2o/akka-kafka-persistence.git</developerConnection>
+        <url>git@github.com:j5ik2o/akka-persistence-kafka-awesome.git</url>
+        <connection>scm:git:github.com/j5ik2o/akka-persistence-kafka-awesome</connection>
+        <developerConnection>scm:git:git@github.com:j5ik2o/akka-persistence-awesome.git</developerConnection>
       </scm>
       <developers>
         <developer>
@@ -59,28 +59,30 @@ val coreSettings = Seq(
       "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/"
     ),
   libraryDependencies ++= Seq(
-      "com.iheart"         %% "ficus"                  % "1.4.7",
-      "org.typelevel"      %% "cats-core"              % "2.0.0",
-      "org.typelevel"      %% "cats-free"              % "2.0.0",
-      "com.beachape"       %% "enumeratum"             % "1.5.13",
-      "org.slf4j"          % "slf4j-api"               % "1.7.25",
-      "org.apache.kafka"   %% "kafka"                  % "2.4.0",
-      "org.apache.kafka"   %% "kafka"                  % "2.4.0" % Test classifier "test",
-      "org.apache.kafka"   % "kafka-clients"           % "2.4.0",
-      "org.apache.kafka"   % "kafka-clients"           % "2.4.0" % Test classifier "test",
-      "com.typesafe.akka"  %% "akka-stream-kafka"      % "2.0.2",
-      "org.apache.curator" % "curator-test"            % "4.3.0" % Test,
-      "org.scalatest"      %% "scalatest"              % "3.1.1" % Test,
-      "org.scalacheck"     %% "scalacheck"             % "1.14.3" % Test,
-      "ch.qos.logback"     % "logback-classic"         % "1.2.3" % Test,
-      "com.typesafe.akka"  %% "akka-persistence"       % akkaVersion,
-      "com.typesafe.akka"  %% "akka-persistence-query" % akkaVersion,
-      "com.typesafe.akka"  %% "akka-stream"            % akkaVersion,
-      "com.typesafe.akka"  %% "akka-slf4j"             % akkaVersion,
-      "com.typesafe.akka"  %% "akka-stream-testkit"    % akkaVersion % Test,
-      "com.typesafe.akka"  %% "akka-persistence-tck"   % akkaVersion % Test,
-      "com.typesafe.akka"  %% "akka-testkit"           % akkaVersion % Test,
-      "ch.qos.logback"     % "logback-classic"         % "1.2.3" % Test
+      "com.iheart"              %% "ficus"                     % "1.4.7",
+      "org.typelevel"           %% "cats-core"                 % "2.0.0",
+      "org.typelevel"           %% "cats-free"                 % "2.0.0",
+      "com.beachape"            %% "enumeratum"                % "1.5.13",
+      "org.slf4j"               % "slf4j-api"                  % "1.7.25",
+      "org.apache.kafka"        %% "kafka"                     % "2.4.0",
+      "org.apache.kafka"        %% "kafka"                     % "2.4.0" % Test classifier "test",
+      "org.apache.kafka"        % "kafka-clients"              % "2.4.0",
+      "org.apache.kafka"        % "kafka-clients"              % "2.4.0" % Test classifier "test",
+      "com.typesafe.akka"       %% "akka-stream-kafka"         % "2.0.2",
+      "com.typesafe.akka"       %% "akka-stream-kafka-testkit" % "2.0.2" % Test,
+      "io.github.embeddedkafka" %% "embedded-kafka"            % "2.4.0" % Test,
+      "org.apache.curator"      % "curator-test"               % "4.3.0" % Test,
+      "org.scalatest"           %% "scalatest"                 % "3.1.1" % Test,
+      "org.scalacheck"          %% "scalacheck"                % "1.14.3" % Test,
+      "ch.qos.logback"          % "logback-classic"            % "1.2.3" % Test,
+      "com.typesafe.akka"       %% "akka-persistence"          % akkaVersion,
+      "com.typesafe.akka"       %% "akka-persistence-query"    % akkaVersion,
+      "com.typesafe.akka"       %% "akka-stream"               % akkaVersion,
+      "com.typesafe.akka"       %% "akka-slf4j"                % akkaVersion,
+      "com.typesafe.akka"       %% "akka-stream-testkit"       % akkaVersion % Test,
+      "com.typesafe.akka"       %% "akka-persistence-tck"      % akkaVersion % Test,
+      "com.typesafe.akka"       %% "akka-testkit"              % akkaVersion % Test,
+      "ch.qos.logback"          % "logback-classic"            % "1.2.3" % Test
     ),
   PB.targets in Compile := Seq(
       scalapb.gen() -> (sourceManaged in Compile).value

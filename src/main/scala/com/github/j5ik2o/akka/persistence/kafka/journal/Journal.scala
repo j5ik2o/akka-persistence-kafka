@@ -15,15 +15,19 @@
  */
 package com.github.j5ik2o.akka.persistence.kafka.journal
 
-final case class JournalRow(
+final case class Journal(
     persistenceId: PersistenceId,
     sequenceNumber: SequenceNumber,
-    deleted: Boolean,
-    message: Array[Byte],
-    ordering: Long,
-    tags: Option[String] = None
+    payload: Any,
+    deleted: Boolean = false,
+    manifest: String = "",
+    timestamp: Long = 0,
+    writerUuid: String = "",
+    tags: Seq[String] = Seq.empty
 ) {
-  def partitionKey: PartitionKey            = PartitionKey(persistenceId, sequenceNumber)
-  def withDeleted: JournalRow               = copy(deleted = true)
-  def withOrdering(value: Long): JournalRow = copy(ordering = value)
+  def withDeleted: Journal                   = copy(deleted = true)
+  def withManifest(value: String): Journal   = copy(manifest = value)
+  def withTimestamp(value: Long): Journal    = copy(timestamp = value)
+  def withWriterUuid(value: String): Journal = copy(writerUuid = value)
+  def withTags(values: Seq[String]): Journal = copy(tags = values)
 }
