@@ -1,7 +1,5 @@
 package com.github.j5ik2o.akka.persistence.kafka.journal
 
-import java.time.Duration
-
 import akka.actor.{ ActorLogging, ActorSystem }
 import akka.kafka._
 import akka.kafka.scaladsl.{ Consumer, Producer }
@@ -13,8 +11,8 @@ import com.github.j5ik2o.akka.persistence.kafka.utils.EitherSeq
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import org.apache.kafka.clients.consumer.{ ConsumerConfig, Consumer => KafkaConsumer }
-import org.apache.kafka.clients.producer.{ ProducerRecord, Producer => KafkaProducer }
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{
   ByteArrayDeserializer,
@@ -46,14 +44,14 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   private val producerConfig = config.getConfig("producer")
   private val consumerConfig = config.getConfig("consumer")
 
+  protected val serialization: Serialization = SerializationExtension(system)
+
   private val producerSettings =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
       .withBootstrapServers(bootstrapServers)
 
   private val consumerSettings = ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
     .withBootstrapServers(bootstrapServers)
-
-  protected val serialization: Serialization = SerializationExtension(system)
 
   // Transient deletions only to pass TCK (persistent not supported)
   private var deletions: Deletions = Map.empty
@@ -172,16 +170,9 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   }
 
   override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] =
-    Future.successful(deleteMessagesTo(persistenceId, toSequenceNr, permanent = false))
-
-  private def deleteMessagesTo(persistenceId: String, toSequenceNr: Long, permanent: Boolean): Unit = {
-    log.info(s"deleteMessagesTo($persistenceId, $toSequenceNr, $permanent)")
-    deletions += (PersistenceId(persistenceId) -> (toSequenceNr, permanent))
-    log.info(s"deletions = $deletions")
-    if (toSequenceNr == Long.MaxValue) {
-      log.info("toSequenceNr = Long.MaxValue")
+    Future.successful {
+      deletions += (PersistenceId(persistenceId) -> (toSequenceNr, false))
     }
-  }
 
   override def asyncReplayMessages(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long, max: Long)(
       replayCallback: PersistentRepr => Unit
@@ -190,20 +181,6 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     log.info(
       s"persistenceId = $persistenceId, fromSequenceNr = $fromSequenceNr, toSequenceNr = $toSequenceNr, max = $max, deletions = $deletions"
     )
-
-    akkaStreamImpl(pid, fromSequenceNr, toSequenceNr, max)(replayCallback)
-
-    // iteratorImpl(pid, adjustedFrom, adjustedTo, permanent, deletedTo)(replayCallback)
-  }
-
-  private def akkaStreamImpl(
-      pid: PersistenceId,
-      fromSequenceNr: Long,
-      toSequenceNr: Long,
-      max: Long
-  )(
-      replayCallback: PersistentRepr => Unit
-  ): Future[Unit] = {
     val (deletedTo, permanent) = deletions.getOrElse(pid, (0L, false))
     log.debug("deletedTo = {}, permanent = {}", deletedTo, permanent)
 
@@ -259,65 +236,6 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
         .map(_ => ())
   }
 
-  private def iteratorImpl(
-      pid: PersistenceId,
-      fromSequenceNr: Long,
-      toSequenceNr: Long,
-      max: Long
-  )(
-      replayCallback: PersistentRepr => Unit
-  ): Future[Unit] = {
-    val (deletedTo, permanent) = deletions.getOrElse(pid, (0L, false))
-    log.info("deletedTo = {}, permanent = {}", deletedTo, permanent)
-
-    val adjustedFrom = if (permanent) Math.max(deletedTo + 1L, fromSequenceNr) else fromSequenceNr
-    val adjustedNum  = toSequenceNr - adjustedFrom + 1L
-    val adjustedTo   = if (max < adjustedNum) adjustedFrom + max - 1L else toSequenceNr
-
-    log.info("adjustedFrom = {}, adjustedNum = {}, adjustedTo = {}", adjustedFrom, adjustedNum, adjustedTo)
-    Future {
-      new KafkaIterator(
-        consumerSettings
-          .withProperties(Map(ConsumerConfig.ISOLATION_LEVEL_CONFIG -> "read_committed"))
-          .createKafkaConsumer(),
-        getTopic(pid),
-        getPartition(pid),
-        Math.max(adjustedFrom - 1L, 0),
-        Duration.ofMillis(500)
-      ).map { m => (m, serialization.deserialize(m.value(), classOf[Journal]).get) }
-        .map {
-          case (m, journal) =>
-            (
-              m,
-              PersistentRepr(
-                persistenceId = journal.persistenceId.asString,
-                sequenceNr = journal.sequenceNumber.value,
-                payload = journal.payload,
-                deleted = journal.deleted,
-                manifest = journal.manifest,
-                writerUuid = journal.writerUuid
-              ).withTimestamp(journal.timestamp)
-            )
-        }
-        .map {
-          case (m, p) =>
-            log.info(s"m.offset = ${m.offset()}, p.sequenceNr = ${p.sequenceNr}, deletedTo = $deletedTo")
-            if (!permanent && p.sequenceNr <= deletedTo) {
-              log.info("update: deleted = true")
-              p.update(deleted = true)
-            } else p
-        }
-        .foldLeft(adjustedFrom) {
-          case (_, p) =>
-            if (p.sequenceNr >= adjustedFrom && p.sequenceNr <= adjustedTo) {
-              log.info("callback = {}", p)
-              replayCallback(p)
-            }
-            p.sequenceNr
-        }
-    }
-  }
-
   override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] =
     Future {
       val topic     = getTopic(PersistenceId(persistenceId))
@@ -327,7 +245,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       val result =
         try {
           consumer.assign(List(tp).asJava)
-          // consumer.seek(tp, fromSequenceNr)
+          consumer.seek(tp, fromSequenceNr)
           consumer.endOffsets(List(tp).asJava).get(tp)
         } finally {
           consumer.close()

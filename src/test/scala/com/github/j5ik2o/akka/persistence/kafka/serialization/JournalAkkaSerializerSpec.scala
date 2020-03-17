@@ -11,16 +11,16 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class KafkaJournalSerializerSpec
+class JournalAkkaSerializerSpec
     extends TestKit(
       ActorSystem(
-        "KafkaJournalSerializerSpec",
+        "JournalAkkaSerializerSpec",
         ConfigFactory.parseString(
           """
     |akka {
     |  actor {
     |    serializers {
-    |      kafka-journal = "com.github.j5ik2o.akka.persistence.kafka.serialization.KafkaJournalSerializer"
+    |      kafka-journal = "com.github.j5ik2o.akka.persistence.kafka.serialization.JournalAkkaSerializer"
     |    }
     |    serialization-bindings {
     |      "com.github.j5ik2o.akka.persistence.kafka.journal.Journal" = kafka-journal
@@ -33,7 +33,7 @@ class KafkaJournalSerializerSpec
     )
     with AnyFreeSpecLike
     with Matchers {
-  "KafkaJournalSerializer" - {
+  "JournalAkkaSerializer" - {
     "serialization" in {
       val serialization = SerializationExtension(system)
       val journal = Journal(

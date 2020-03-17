@@ -1,25 +1,20 @@
 package com.github.j5ik2o.akka.persistence.kafka.serialization
 
 import akka.actor.ExtendedActorSystem
-import akka.serialization.{ SerializationExtension, Serializer }
+import akka.serialization.{ SerializationExtension, Serializer => AkkaSerializer }
 import com.github.j5ik2o.akka.persistence.kafka.journal.protocol.{ JournalFormat, PayloadFormat }
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ Journal, PersistenceId, SequenceNumber }
 import com.google.protobuf.ByteString
-import org.apache.kafka.common.serialization.Deserializer
 import org.slf4j.LoggerFactory
 
-object KafkaJournalSerializer {
+object JournalAkkaSerializer {
   val Identifier = 19720203
 }
 
-class KafkaJournalDeserializer extends Deserializer[Journal] {
-  override def deserialize(topic: String, data: Array[Byte]): Journal = ???
-}
-
-class KafkaJournalSerializer(system: ExtendedActorSystem) extends Serializer {
+class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer {
   private val logger = LoggerFactory.getLogger(getClass)
 
-  override def identifier: Int          = KafkaJournalSerializer.Identifier
+  override def identifier: Int          = JournalAkkaSerializer.Identifier
   override def includeManifest: Boolean = false
 
   override def toBinary(o: AnyRef): Array[Byte] = o match {
