@@ -23,6 +23,8 @@ native
 .terraform/
 node_modules/
 dump.rdb
+data/
 
 .DS_Store
 .credentials
+
