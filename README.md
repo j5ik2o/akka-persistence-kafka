@@ -1,5 +1,7 @@
 # akka-persistence-kafka
 
+STATUS: WIP
+
 akka-persistence-kafka writes journal and snapshot entries to Kafka.
 
 ## Features
