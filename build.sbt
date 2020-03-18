@@ -1,6 +1,6 @@
 val scala212Version     = "2.12.10"
 val scala213Version     = "2.13.1"
-val akkaVersion         = "2.6.3"
+val akkaVersion         = "2.6.4"
 val kafkaVersion        = "2.4.0"
 val alpakkaKafkaVersion = "2.0.2"
 
@@ -42,7 +42,7 @@ val coreSettings = Seq(
       <scm>
         <url>git@github.com:j5ik2o/akka-persistence-kafka-awesome.git</url>
         <connection>scm:git:github.com/j5ik2o/akka-persistence-kafka-awesome</connection>
-        <developerConnection>scm:git:git@github.com:j5ik2o/akka-persistence-awesome.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:j5ik2o/akka-persistence-kafka-awesome.git</developerConnection>
       </scm>
       <developers>
         <developer>
