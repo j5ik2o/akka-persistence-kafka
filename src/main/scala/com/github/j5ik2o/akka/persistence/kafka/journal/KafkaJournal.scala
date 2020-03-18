@@ -22,21 +22,17 @@ import org.apache.kafka.common.serialization.{
   StringSerializer
 }
 
+import scala.collection.immutable
 import scala.concurrent._
 import scala.jdk.CollectionConverters._
 import scala.util.{ Failure, Success, Try }
 
 object KafkaJournal {
-
-  final case class InPlaceUpdateEvent(persistenceId: String, sequenceNumber: Long, message: AnyRef)
-
-  private case class WriteFinished(pid: String, f: Future[_])
-
+  type Deletions = Map[PersistenceId, (Long, Boolean)]
 }
 
 class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
-  type Deletions = Map[PersistenceId, (Long, Boolean)]
-
+  import KafkaJournal._
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val system: ActorSystem  = context.system
 
@@ -47,13 +43,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   protected val serialization: Serialization = SerializationExtension(system)
 
-  protected val serializer = new PersistentReprSerializer(system)
+  protected val serializer = new PersistentReprSerializer(serialization)
 
-  private val producerSettings =
+  protected val producerSettings =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
       .withBootstrapServers(bootstrapServers)
 
-  private val consumerSettings = ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
+  protected val consumerSettings = ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
     .withBootstrapServers(bootstrapServers)
 
   // Transient deletions only to pass TCK (persistent not supported)
@@ -63,7 +59,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   private def getTopic(pid: PersistenceId): String = pid.asString
 
-  override def asyncWriteMessages(atomicWrites: Seq[AtomicWrite]): Future[Seq[Try[Unit]]] = {
+  override def asyncWriteMessages(atomicWrites: immutable.Seq[AtomicWrite]): Future[immutable.Seq[Try[Unit]]] = {
     log.debug(s"asyncWriteMessages($atomicWrites): start")
     val serializedTries: Seq[Either[Throwable, Seq[JournalWithByteArray]]] = serializer.serialize(atomicWrites)
     val rowsToWrite: Seq[JournalWithByteArray] = for {
@@ -102,8 +98,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               journal.persistenceId.asString,
               byteArray
             )
-        })
-    val future: Future[Seq[Try[Unit]]] = Source
+        }.asJava)
+    val future: Future[immutable.Seq[Try[Unit]]] = Source
       .single(messages)
       .via(Producer.flexiFlow(producerSettings))
       .mapConcat {
@@ -158,7 +154,11 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               new TopicPartition(getTopic(pid), getPartition(pid)) -> Math.max(adjustedFrom - 1, 0)
             )
           )
-          .map { record => (record, serialization.deserialize(record.value(), classOf[Journal]).get) }
+          .flatMapConcat { record =>
+            serialization
+              .deserialize(record.value(), classOf[Journal])
+              .fold(Source.failed, journal => Source.single((record, journal)))
+          }
           .map {
             case (record, journal) =>
               (
@@ -176,7 +176,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
           .map {
             case (record, persistentRepr) =>
               log.debug(
-                s"m.offset = ${record.offset()}, p.sequenceNr = ${persistentRepr.sequenceNr}, deletedTo = $deletedTo"
+                s"record.offset = ${record.offset()}, persistentRepr.sequenceNr = ${persistentRepr.sequenceNr}, deletedTo = $deletedTo"
               )
               if (!permanent && persistentRepr.sequenceNr <= deletedTo) {
                 log.debug("update: deleted = true")

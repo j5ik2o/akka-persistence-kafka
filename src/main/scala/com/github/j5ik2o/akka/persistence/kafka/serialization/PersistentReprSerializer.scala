@@ -1,9 +1,8 @@
 package com.github.j5ik2o.akka.persistence.kafka.serialization
 
-import akka.actor.ActorSystem
 import akka.persistence.journal.Tagged
 import akka.persistence.{ AtomicWrite, PersistentRepr }
-import akka.serialization.{ Serialization, SerializationExtension }
+import akka.serialization.Serialization
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ Journal, PersistenceId, SequenceNumber }
 import com.github.j5ik2o.akka.persistence.kafka.utils.EitherSeq
 
@@ -12,10 +11,8 @@ object PersistentReprSerializer {
 
 }
 
-class PersistentReprSerializer(system: ActorSystem) {
+class PersistentReprSerializer(serialization: Serialization) {
   import PersistentReprSerializer._
-
-  private val serialization: Serialization = SerializationExtension(system)
 
   def serialize(persistentRepr: PersistentRepr): Either[Throwable, JournalWithByteArray] =
     serialize(persistentRepr, None)
@@ -48,7 +45,9 @@ class PersistentReprSerializer(system: ActorSystem) {
     }
   }
 
-  def serialize(atomicWrites: Seq[AtomicWrite]): Seq[Either[Throwable, Seq[JournalWithByteArray]]] = {
+  def serialize(
+      atomicWrites: Seq[AtomicWrite]
+  ): Seq[Either[Throwable, Seq[JournalWithByteArray]]] = {
     atomicWrites.map { atomicWrite =>
       val serialized = atomicWrite.payload.zipWithIndex.map {
         case (v, index) => serialize(v, Some(index))
