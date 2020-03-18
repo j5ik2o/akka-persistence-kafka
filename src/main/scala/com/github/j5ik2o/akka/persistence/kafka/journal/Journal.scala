@@ -23,7 +23,8 @@ final case class Journal(
     manifest: String = "",
     timestamp: Long = 0,
     writerUuid: String = "",
-    tags: Seq[String] = Seq.empty
+    tags: Seq[String] = Seq.empty,
+    ordering: Option[Int] = None
 ) {
   def withDeleted: Journal                   = copy(deleted = true)
   def withManifest(value: String): Journal   = copy(manifest = value)

@@ -3,11 +3,12 @@ package com.github.j5ik2o.akka.persistence.kafka.journal
 import akka.actor.{ ActorLogging, ActorSystem }
 import akka.kafka._
 import akka.kafka.scaladsl.{ Consumer, Producer }
-import akka.persistence.journal.{ AsyncWriteJournal, Tagged }
+import akka.persistence.journal.AsyncWriteJournal
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.{ Serialization, SerializationExtension }
 import akka.stream.scaladsl.{ Keep, Sink, Source }
-import com.github.j5ik2o.akka.persistence.kafka.utils.EitherSeq
+import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
+import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
@@ -46,6 +47,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   protected val serialization: Serialization = SerializationExtension(system)
 
+  protected val serializer = new PersistentReprSerializer(system)
+
   private val producerSettings =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
       .withBootstrapServers(bootstrapServers)
@@ -56,69 +59,28 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   // Transient deletions only to pass TCK (persistent not supported)
   private var deletions: Deletions = Map.empty
 
-  override def postStop(): Unit = {
-    super.postStop()
-  }
-
   private def getPartition(pid: PersistenceId): Int = 0
 
   private def getTopic(pid: PersistenceId): String = pid.asString
 
-  private val attempts = 1
-
-  type JournalWithByteArray = (Journal, Array[Byte])
-
-  def serialize(persistentRepr: PersistentRepr): Either[Throwable, JournalWithByteArray] =
-    serialize(persistentRepr, None)
-
-  def serialize(
-      persistentRepr: PersistentRepr,
-      tags: Set[String],
-      index: Option[Int]
-  ): Either[Throwable, JournalWithByteArray] = {
-    val journal = Journal(
-      persistenceId = PersistenceId(persistentRepr.persistenceId),
-      sequenceNumber = SequenceNumber(persistentRepr.sequenceNr),
-      payload = persistentRepr.payload,
-      deleted = persistentRepr.deleted,
-      manifest = persistentRepr.manifest,
-      timestamp = persistentRepr.timestamp,
-      writerUuid = persistentRepr.writerUuid,
-      tags = tags.toSeq
-    )
-    serialization.serialize(journal).map((journal, _)).toEither
-  }
-
-  def serialize(persistentRepr: PersistentRepr, index: Option[Int]): Either[Throwable, JournalWithByteArray] = {
-    persistentRepr.payload match {
-      case Tagged(payload, tags) =>
-        serialize(persistentRepr.withPayload(payload), tags, index)
-      case _ =>
-        serialize(persistentRepr, Set.empty[String], index)
-    }
-  }
-
-  def serialize(atomicWrites: Seq[AtomicWrite]): Seq[Either[Throwable, Seq[JournalWithByteArray]]] = {
-    atomicWrites.map { atomicWrite =>
-      val serialized = atomicWrite.payload.zipWithIndex.map {
-        case (v, index) => serialize(v, Some(index))
-      }
-      EitherSeq.sequence(serialized)
-    }
-  }
-
   override def asyncWriteMessages(atomicWrites: Seq[AtomicWrite]): Future[Seq[Try[Unit]]] = {
     log.debug(s"asyncWriteMessages($atomicWrites): start")
-    val serializedTries: Seq[Either[Throwable, Seq[JournalWithByteArray]]] = serialize(atomicWrites)
+    val serializedTries: Seq[Either[Throwable, Seq[JournalWithByteArray]]] = serializer.serialize(atomicWrites)
     val rowsToWrite: Seq[JournalWithByteArray] = for {
       serializeTry <- serializedTries
       row          <- serializeTry.right.getOrElse(Seq.empty)
     } yield row
-    def resultWhenWriteComplete: Seq[Either[Throwable, Unit]] =
-      if (serializedTries.forall(_.isRight)) Nil
+    def resultWhenWriteComplete: Vector[Try[Unit]] =
+      if (serializedTries.forall(_.isRight))
+        Vector.empty
       else
         serializedTries
           .map(_.right.map(_ => ()))
+          .map {
+            case Right(value) => Success(value)
+            case Left(ex)     => Failure(ex)
+          }
+          .toVector
     val messages =
       if (rowsToWrite.size == 1) {
         val journal   = rowsToWrite.head._1
@@ -145,17 +107,11 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       .single(messages)
       .via(Producer.flexiFlow(producerSettings))
       .mapConcat {
-        case ProducerMessage.Result(metadata, ProducerMessage.Message(record, passThrough)) =>
-          resultWhenWriteComplete.map {
-            case Right(value) => Success(value)
-            case Left(ex)     => Failure(ex)
-          }.toVector
-        case ProducerMessage.MultiResult(parts, passThrough) =>
-          resultWhenWriteComplete.map {
-            case Right(value) => Success(value)
-            case Left(ex)     => Failure(ex)
-          }.toVector
-        case ProducerMessage.PassThroughResult(passThrough) =>
+        case ProducerMessage.Result(_, _) =>
+          resultWhenWriteComplete
+        case ProducerMessage.MultiResult(_, _) =>
+          resultWhenWriteComplete
+        case ProducerMessage.PassThroughResult(_) =>
           Vector.empty
       }
       .toMat(Sink.seq)(Keep.right)
@@ -177,10 +133,10 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   override def asyncReplayMessages(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long, max: Long)(
       replayCallback: PersistentRepr => Unit
   ): Future[Unit] = {
-    val pid = PersistenceId(persistenceId)
-    log.info(
-      s"persistenceId = $persistenceId, fromSequenceNr = $fromSequenceNr, toSequenceNr = $toSequenceNr, max = $max, deletions = $deletions"
+    log.debug(
+      s"asyncReplayMessages($persistenceId, $fromSequenceNr, $toSequenceNr, $max): start"
     )
+    val pid                    = PersistenceId(persistenceId)
     val (deletedTo, permanent) = deletions.getOrElse(pid, (0L, false))
     log.debug("deletedTo = {}, permanent = {}", deletedTo, permanent)
 
@@ -191,53 +147,66 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
     log.debug("adjustedFrom = {}, adjustedNum = {}, adjustedTo = {}", adjustedFrom, adjustedNum, adjustedTo)
 
-    if (max == 0 || adjustedFrom > adjustedTo || deletedTo == Long.MaxValue)
-      Future.successful(())
-    else
-      Consumer
-        .plainSource(
-          consumerSettings.withProperties(Map(ConsumerConfig.ISOLATION_LEVEL_CONFIG -> "read_committed")),
-          Subscriptions.assignmentWithOffset(
-            new TopicPartition(getTopic(pid), getPartition(pid)) -> Math.max(adjustedFrom - 1, 0)
+    val future =
+      if (max == 0 || adjustedFrom > adjustedTo || deletedTo == Long.MaxValue)
+        Future.successful(())
+      else
+        Consumer
+          .plainSource(
+            consumerSettings.withProperties(Map(ConsumerConfig.ISOLATION_LEVEL_CONFIG -> "read_committed")),
+            Subscriptions.assignmentWithOffset(
+              new TopicPartition(getTopic(pid), getPartition(pid)) -> Math.max(adjustedFrom - 1, 0)
+            )
           )
-        )
-        .map { record => (record, serialization.deserialize(record.value(), classOf[Journal]).get) }
-        .map {
-          case (record, journal) =>
-            (
-              record,
-              PersistentRepr(
-                persistenceId = journal.persistenceId.asString,
-                sequenceNr = journal.sequenceNumber.value,
-                payload = journal.payload,
-                deleted = journal.deleted,
-                manifest = journal.manifest,
-                writerUuid = journal.writerUuid
-              ).withTimestamp(journal.timestamp)
-            )
-        }
-        .map {
-          case (record, persistentRepr) =>
-            log.debug(
-              s"m.offset = ${record.offset()}, p.sequenceNr = ${persistentRepr.sequenceNr}, deletedTo = $deletedTo"
-            )
-            if (!permanent && persistentRepr.sequenceNr <= deletedTo) {
-              log.debug("update: deleted = true")
-              persistentRepr.update(deleted = true)
-            } else persistentRepr
-        }
-        .take(adjustedNum)
-        .runWith(Sink.foreach { persistentRepr =>
-          if (adjustedFrom <= persistentRepr.sequenceNr && persistentRepr.sequenceNr <= adjustedTo) {
-            log.debug("callback = {}", persistentRepr)
-            replayCallback(persistentRepr)
+          .map { record => (record, serialization.deserialize(record.value(), classOf[Journal]).get) }
+          .map {
+            case (record, journal) =>
+              (
+                record,
+                PersistentRepr(
+                  persistenceId = journal.persistenceId.asString,
+                  sequenceNr = journal.sequenceNumber.value,
+                  payload = journal.payload,
+                  deleted = journal.deleted,
+                  manifest = journal.manifest,
+                  writerUuid = journal.writerUuid
+                ).withTimestamp(journal.timestamp)
+              )
           }
-        })
-        .map(_ => ())
+          .map {
+            case (record, persistentRepr) =>
+              log.debug(
+                s"m.offset = ${record.offset()}, p.sequenceNr = ${persistentRepr.sequenceNr}, deletedTo = $deletedTo"
+              )
+              if (!permanent && persistentRepr.sequenceNr <= deletedTo) {
+                log.debug("update: deleted = true")
+                persistentRepr.update(deleted = true)
+              } else persistentRepr
+          }
+          .take(adjustedNum)
+          .runWith(Sink.foreach { persistentRepr =>
+            if (adjustedFrom <= persistentRepr.sequenceNr && persistentRepr.sequenceNr <= adjustedTo) {
+              log.debug("callback = {}", persistentRepr)
+              replayCallback(persistentRepr)
+            }
+          })
+          .map(_ => ())
+    future.onComplete {
+      case Success(value) =>
+        log.debug(
+          s"asyncReplayMessages($persistenceId, $fromSequenceNr, $toSequenceNr, $max): finished, succeeded($value)"
+        )
+      case Failure(ex) =>
+        log.debug(
+          s"asyncReplayMessages($persistenceId, $fromSequenceNr, $toSequenceNr, $max): finished, failed($ex)"
+        )
+    }
+    future
   }
 
-  override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] =
-    Future {
+  override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] = {
+    val future = Future {
+      log.debug("asyncReadHighestSequenceNr({},{}): start", persistenceId, fromSequenceNr)
       val topic     = getTopic(PersistenceId(persistenceId))
       val partition = getPartition(PersistenceId(persistenceId))
       val tp        = new TopicPartition(topic, partition)
@@ -250,8 +219,15 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
         } finally {
           consumer.close()
         }
-      log.info("asyncReadHighestSequenceNr = {}", result)
       Math.max(result, 0)
     }
+    future.onComplete {
+      case Success(value) =>
+        log.debug("asyncReadHighestSequenceNr({},{}): finished, succeeded({})", persistenceId, fromSequenceNr, value)
+      case Failure(ex) =>
+        log.debug("asyncReadHighestSequenceNr({},{}): finished, failed({})", persistenceId, fromSequenceNr, ex)
+    }
+    future
+  }
 
 }
