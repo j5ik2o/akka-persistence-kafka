@@ -20,14 +20,9 @@ class SnapshotAkkaSerializer(system: ExtendedActorSystem) extends Serializer {
       val snapshotSerializer = extension.findSerializerFor(snapshot)
 
       val snapshotBytes = snapshotSerializer.toBinary(snapshot)
-      val metadataBytes = SnapshotMetadataFormat(
-        persistenceId = ks.metadata.persistenceId,
-        sequenceNumber = ks.metadata.sequenceNr,
-        timestamp = ks.metadata.timestamp
-      ).toByteArray
+      val metadataBytes = snapshotMetadataToBinary(ks)
 
       val out = new ByteArrayOutputStream
-
       writeInt(out, metadataBytes.length)
       out.write(metadataBytes)
       out.write(snapshotBytes)
@@ -41,11 +36,24 @@ class SnapshotAkkaSerializer(system: ExtendedActorSystem) extends Serializer {
     val metadataBytes  = bytes.slice(4, metadataLength + 4)
     val snapshotBytes  = bytes.drop(metadataLength + 4)
 
+    val metadata: SnapshotMetadata = snapshotMetadataFromBinary(metadataBytes)
+    val snapshot                   = extension.deserialize(snapshotBytes, classOf[AkkaSnapshot]).get
+    Snapshot(metadata, snapshot.data)
+  }
+
+  private def snapshotMetadataToBinary(ks: Snapshot): Array[Byte] = {
+    SnapshotMetadataFormat(
+      persistenceId = ks.metadata.persistenceId,
+      sequenceNumber = ks.metadata.sequenceNr,
+      timestamp = ks.metadata.timestamp
+    ).toByteArray
+  }
+
+  private def snapshotMetadataFromBinary(metadataBytes: Array[Byte]): SnapshotMetadata = {
     val metadataFormat = SnapshotMetadataFormat.parseFrom(metadataBytes)
     val metadata =
       SnapshotMetadata(metadataFormat.persistenceId, metadataFormat.sequenceNumber, metadataFormat.timestamp)
-    val snapshot = extension.deserialize(snapshotBytes, classOf[AkkaSnapshot]).get
-    Snapshot(metadata, snapshot.data)
+    metadata
   }
 
   private def writeInt(outputStream: OutputStream, i: Int): Unit =

@@ -21,11 +21,6 @@ message PayloadFormat {
    bytes data_manifest = 4;
 }
 
-message SnapshotFormat {
-   SnapshotMetadataFormat metadata = 1;
-   PayloadFormat payload = 2;
-}
-
 message SnapshotMetadataFormat {
    string persistence_id = 1;
    int64 sequence_number = 2;
