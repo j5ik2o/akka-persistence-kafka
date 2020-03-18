@@ -61,6 +61,7 @@ val coreSettings = Seq(
       "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/"
     ),
   libraryDependencies ++= Seq(
+      "org.scala-lang"          % "scala-reflect"              % scalaVersion.value,
       "com.iheart"              %% "ficus"                     % "1.4.7",
       "org.slf4j"               % "slf4j-api"                  % "1.7.25",
       "com.typesafe.akka"       %% "akka-stream"               % akkaVersion,

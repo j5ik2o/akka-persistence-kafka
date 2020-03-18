@@ -9,6 +9,7 @@ import akka.serialization.{ Serialization, SerializationExtension }
 import akka.stream.scaladsl.{ Keep, Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
+import com.github.j5ik2o.akka.persistence.kafka.utils.ClassUtil
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
@@ -45,19 +46,34 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   protected val serializer = new PersistentReprSerializer(serialization)
 
-  protected val producerSettings =
+  protected val producerSettings: ProducerSettings[String, Array[Byte]] =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
       .withBootstrapServers(bootstrapServers)
 
-  protected val consumerSettings = ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
-    .withBootstrapServers(bootstrapServers)
+  protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
+    ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
+      .withBootstrapServers(bootstrapServers)
+
+  protected val journalTopicResolver: KafkaTopicResolver =
+    config
+      .getAs[String]("journal.topic-resolver-class-name")
+      .map { name => ClassUtil.create(classOf[KafkaTopicResolver], name) }
+      .getOrElse(KafkaTopicResolver.Default)
+
+  protected val journalPartitionResolver: KafkaPartitionResolver =
+    config
+      .getAs[String]("journal.partition-resolver-class-name")
+      .map { name => ClassUtil.create(classOf[KafkaPartitionResolver], name) }
+      .getOrElse(KafkaPartitionResolver.Default)
 
   // Transient deletions only to pass TCK (persistent not supported)
   private var deletions: Deletions = Map.empty
 
-  private def getPartition(pid: PersistenceId): Int = 0
+  private def resolvePartition(persistenceId: PersistenceId): Int =
+    journalPartitionResolver.resolve(persistenceId).value
 
-  private def getTopic(pid: PersistenceId): String = pid.asString
+  private def resolveTopic(persistenceId: PersistenceId): String =
+    journalTopicResolver.resolve(persistenceId).asString
 
   override def asyncWriteMessages(atomicWrites: immutable.Seq[AtomicWrite]): Future[immutable.Seq[Try[Unit]]] = {
     log.debug(s"asyncWriteMessages($atomicWrites): start")
@@ -83,8 +99,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
         val byteArray = rowsToWrite.head._2
         ProducerMessage.single(
           new ProducerRecord(
-            getTopic(journal.persistenceId),
-            getPartition(journal.persistenceId),
+            resolveTopic(journal.persistenceId),
+            resolvePartition(journal.persistenceId),
             journal.persistenceId.asString,
             byteArray
           )
@@ -93,12 +109,12 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
         ProducerMessage.multi(rowsToWrite.map {
           case (journal, byteArray) =>
             new ProducerRecord(
-              getTopic(journal.persistenceId),
-              getPartition(journal.persistenceId),
+              resolveTopic(journal.persistenceId),
+              resolvePartition(journal.persistenceId),
               journal.persistenceId.asString,
               byteArray
             )
-        }.asJava)
+        }.asJava) // asJava method, Must not modify for 2.12
     val future: Future[immutable.Seq[Try[Unit]]] = Source
       .single(messages)
       .via(Producer.flexiFlow(producerSettings))
@@ -151,7 +167,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
           .plainSource(
             consumerSettings.withProperties(Map(ConsumerConfig.ISOLATION_LEVEL_CONFIG -> "read_committed")),
             Subscriptions.assignmentWithOffset(
-              new TopicPartition(getTopic(pid), getPartition(pid)) -> Math.max(adjustedFrom - 1, 0)
+              new TopicPartition(resolveTopic(pid), resolvePartition(pid)) -> Math.max(adjustedFrom - 1, 0)
             )
           )
           .flatMapConcat { record =>
@@ -207,8 +223,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] = {
     val future = Future {
       log.debug("asyncReadHighestSequenceNr({},{}): start", persistenceId, fromSequenceNr)
-      val topic     = getTopic(PersistenceId(persistenceId))
-      val partition = getPartition(PersistenceId(persistenceId))
+      val topic     = resolveTopic(PersistenceId(persistenceId))
+      val partition = resolvePartition(PersistenceId(persistenceId))
       val tp        = new TopicPartition(topic, partition)
       val consumer  = consumerSettings.createKafkaConsumer()
       val result =
