@@ -67,6 +67,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       .map { name => ClassUtil.create(classOf[KafkaPartitionResolver], name) }
       .getOrElse(KafkaPartitionResolver.PartitionZero)
 
+  protected val journalSequence = new JournalSequence(consumerSettings, journalTopicResolver, journalPartitionResolver)
+
   // Transient deletions only to pass TCK (persistent not supported)
   private var deletions: Deletions = Map.empty
 
@@ -75,6 +77,11 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   private def resolvePartition(persistenceId: PersistenceId): Int =
     journalPartitionResolver.resolve(persistenceId).value
+
+  override def postStop(): Unit = {
+    journalSequence.close()
+    super.postStop()
+  }
 
   override def asyncWriteMessages(atomicWrites: immutable.Seq[AtomicWrite]): Future[immutable.Seq[Try[Unit]]] = {
     log.debug(s"asyncWriteMessages($atomicWrites): start")
@@ -224,12 +231,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] = {
     val future = Future {
       log.debug("asyncReadHighestSequenceNr({},{}): start", persistenceId, fromSequenceNr)
-      val journalSequence = new JournalSequence(consumerSettings, journalTopicResolver, journalPartitionResolver)
-      try {
-        journalSequence.readHighestSequenceNr(PersistenceId(persistenceId), Some(fromSequenceNr))
-      } finally {
-        journalSequence.close()
-      }
+      journalSequence.readHighestSequenceNr(PersistenceId(persistenceId), Some(fromSequenceNr))
     }
     future.onComplete {
       case Success(value) =>
