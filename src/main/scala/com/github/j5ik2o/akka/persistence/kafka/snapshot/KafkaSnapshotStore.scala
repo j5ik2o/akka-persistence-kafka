@@ -33,7 +33,6 @@ object KafkaSnapshotStore {
 
 class KafkaSnapshotStore(config: Config) extends SnapshotStore {
   import KafkaSnapshotStore._
-
   import context.dispatcher
   implicit val system: ActorSystem = context.system
 
@@ -109,10 +108,10 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     val rangeDeletions  = this.rangeDeletions
 
     for {
-      highest <- if (ignoreOrphan) Future {
-        journalSequence.readHighestSequenceNr(PersistenceId(persistenceId))
-      }
-      else Future.successful(Long.MaxValue)
+      highest <- if (ignoreOrphan)
+        journalSequence.readHighestSequenceNrAsync(PersistenceId(persistenceId))
+      else
+        Future.successful(Long.MaxValue)
       adjusted = if (ignoreOrphan &&
                      highest < criteria.maxSequenceNr &&
                      highest > 0L) criteria.copy(maxSequenceNr = highest)

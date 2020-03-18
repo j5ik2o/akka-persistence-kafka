@@ -7,30 +7,11 @@ import akka.actor.ActorSystem
 import akka.serialization.SerializationExtension
 import akka.testkit.TestKit
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ Journal, PersistenceId, SequenceNumber }
-import com.typesafe.config.ConfigFactory
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
 class JournalAkkaSerializerSpec
-    extends TestKit(
-      ActorSystem(
-        "JournalAkkaSerializerSpec",
-        ConfigFactory.parseString(
-          """
-    |akka {
-    |  actor {
-    |    serializers {
-    |      kafka-journal = "com.github.j5ik2o.akka.persistence.kafka.serialization.JournalAkkaSerializer"
-    |    }
-    |    serialization-bindings {
-    |      "com.github.j5ik2o.akka.persistence.kafka.journal.Journal" = kafka-journal
-    |    }
-    |  }
-    |}
-    |""".stripMargin
-        )
-      )
-    )
+    extends TestKit(ActorSystem("JournalAkkaSerializerSpec"))
     with AnyFreeSpecLike
     with Matchers {
   "JournalAkkaSerializer" - {
@@ -39,8 +20,6 @@ class JournalAkkaSerializerSpec
       val journal = Journal(
         persistenceId = PersistenceId("aaaa"),
         sequenceNumber = SequenceNumber(1),
-        deleted = false,
-        manifest = "",
         writerUuid = UUID.randomUUID().toString,
         timestamp = Instant.now().toEpochMilli,
         payload = "test",

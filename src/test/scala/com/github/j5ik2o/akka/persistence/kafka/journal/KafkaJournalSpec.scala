@@ -8,11 +8,19 @@ import org.scalatest.BeforeAndAfterAll
 
 class KafkaJournalSpec
     extends JournalSpec(
-      ConfigFactory.parseString("""
-                                |akka.test.single-expect-default = 60s
-      """.stripMargin).withFallback(ConfigFactory.load())
+      ConfigFactory
+        .parseString(
+          """
+          |akka.test.single-expect-default = 60s
+          """.stripMargin
+        )
+        .withFallback(ConfigFactory.load())
     )
     with BeforeAndAfterAll {
+
+  override protected def supportsRejectingNonSerializableObjects: CapabilityFlag = CapabilityFlag.on()
+
+  override protected def supportsSerialization: CapabilityFlag = CapabilityFlag.off()
 
   implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
     customBrokerProperties = Map("num.partitions" -> "12")
@@ -28,5 +36,4 @@ class KafkaJournalSpec
     super.afterAll()
   }
 
-  override protected def supportsRejectingNonSerializableObjects: CapabilityFlag = CapabilityFlag.on()
 }

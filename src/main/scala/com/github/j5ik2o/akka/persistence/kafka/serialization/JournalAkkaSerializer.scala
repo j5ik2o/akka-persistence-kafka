@@ -2,13 +2,13 @@ package com.github.j5ik2o.akka.persistence.kafka.serialization
 
 import akka.actor.ExtendedActorSystem
 import akka.serialization.{ SerializationExtension, Serializer => AkkaSerializer }
-import com.github.j5ik2o.akka.persistence.kafka.journal.protocol.{ JournalFormat, PayloadFormat }
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ Journal, PersistenceId, SequenceNumber }
+import com.github.j5ik2o.akka.persistence.kafka.protocol.{ JournalFormat, PayloadFormat }
 import com.google.protobuf.ByteString
 import org.slf4j.LoggerFactory
 
 object JournalAkkaSerializer {
-  val Identifier = 19720203
+  val Identifier = 15443
 }
 
 class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer {
@@ -19,9 +19,11 @@ class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer 
 
   override def toBinary(o: AnyRef): Array[Byte] = o match {
     case journal: Journal =>
-      logger.debug("journal = {}", journal)
+      logger.debug("toBinary:journal = {}", journal)
       val data       = journal.payload.asInstanceOf[AnyRef]
       val serializer = SerializationExtension(system).findSerializerFor(data)
+      logger.debug("toBinary:serializer = {}", serializer)
+      logger.debug("toBinary:serializer.identifier = {}", serializer.identifier)
       JournalFormat(
         persistenceId = journal.persistenceId.asString,
         sequenceNumber = journal.sequenceNumber.value,
@@ -47,6 +49,14 @@ class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer 
     val journalFormat = JournalFormat.parseFrom(bytes)
     require(journalFormat.payload.isDefined)
     val payload = journalFormat.payload.get
+
+    logger.debug("fromBinary:payload.serializerId = {}", payload.serializerId)
+
+    val clazz =
+      if (payload.hasDataManifest)
+        Some(system.dynamicAccess.getClassFor[AnyRef](payload.dataManifest.toStringUtf8).get)
+      else None
+
     val result = Journal(
       persistenceId = PersistenceId(journalFormat.persistenceId),
       sequenceNumber = SequenceNumber(journalFormat.sequenceNumber),
@@ -54,7 +64,7 @@ class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer 
         .deserialize(
           payload.data.toByteArray,
           payload.serializerId,
-          payload.dataManifest.toStringUtf8
+          clazz
         )
         .get,
       deleted = journalFormat.deleted,
