@@ -1,4 +1,4 @@
-package com.github.j5ik2o.akka.persistence.kafka.journal
+package com.github.j5ik2o.akka.persistence.kafka.resolver
 
 case class KafkaTopic(private val value: String) {
 

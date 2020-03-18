@@ -7,6 +7,7 @@ import akka.persistence.journal.AsyncWriteJournal
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.{ Serialization, SerializationExtension }
 import akka.stream.scaladsl.{ Keep, Sink, Source }
+import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
 import com.github.j5ik2o.akka.persistence.kafka.utils.ClassUtil
@@ -58,13 +59,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     config
       .getAs[String]("journal.topic-resolver-class-name")
       .map { name => ClassUtil.create(classOf[KafkaTopicResolver], name) }
-      .getOrElse(KafkaTopicResolver.Default)
+      .getOrElse(KafkaTopicResolver.PersistenceId)
 
   protected val journalPartitionResolver: KafkaPartitionResolver =
     config
       .getAs[String]("journal.partition-resolver-class-name")
       .map { name => ClassUtil.create(classOf[KafkaPartitionResolver], name) }
-      .getOrElse(KafkaPartitionResolver.Default)
+      .getOrElse(KafkaPartitionResolver.PartitionZero)
 
   // Transient deletions only to pass TCK (persistent not supported)
   private var deletions: Deletions = Map.empty
