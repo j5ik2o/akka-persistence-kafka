@@ -7,6 +7,11 @@ import akka.persistence.journal.AsyncWriteJournal
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.{ Serialization, SerializationExtension }
 import akka.stream.scaladsl.{ Keep, Sink, Source }
+import com.github.j5ik2o.akka.persistence.kafka.journal.KafkaJournalProtocol.{
+  ReadHighestSequenceNr,
+  ReadHighestSequenceNrFailure,
+  ReadHighestSequenceNrSuccess
+}
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
@@ -75,6 +80,18 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   private def resolveTopic(persistenceId: PersistenceId): String =
     journalTopicResolver.resolve(persistenceId).asString
+
+  override def receivePluginInternal: Receive = localReceive.orElse(super.receivePluginInternal)
+
+  private def localReceive: Receive = {
+    case ReadHighestSequenceNr(fromSequenceNr, persistenceId, _) =>
+      try {
+        val highest = readHighestSequenceNr(persistenceId, fromSequenceNr)
+        sender() ! ReadHighestSequenceNrSuccess(highest)
+      } catch {
+        case e: Exception => sender ! ReadHighestSequenceNrFailure(e)
+      }
+  }
 
   override def asyncWriteMessages(atomicWrites: immutable.Seq[AtomicWrite]): Future[immutable.Seq[Try[Unit]]] = {
     log.debug(s"asyncWriteMessages($atomicWrites): start")
@@ -221,22 +238,26 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     future
   }
 
+  private def readHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Long = {
+    val topic     = resolveTopic(PersistenceId(persistenceId))
+    val partition = resolvePartition(PersistenceId(persistenceId))
+    val tp        = new TopicPartition(topic, partition)
+    val consumer  = consumerSettings.createKafkaConsumer()
+    val result =
+      try {
+        consumer.assign(List(tp).asJava)
+        consumer.seek(tp, fromSequenceNr)
+        consumer.endOffsets(List(tp).asJava).get(tp)
+      } finally {
+        consumer.close()
+      }
+    Math.max(result, 0)
+  }
+
   override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] = {
     val future = Future {
       log.debug("asyncReadHighestSequenceNr({},{}): start", persistenceId, fromSequenceNr)
-      val topic     = resolveTopic(PersistenceId(persistenceId))
-      val partition = resolvePartition(PersistenceId(persistenceId))
-      val tp        = new TopicPartition(topic, partition)
-      val consumer  = consumerSettings.createKafkaConsumer()
-      val result =
-        try {
-          consumer.assign(List(tp).asJava)
-          consumer.seek(tp, fromSequenceNr)
-          consumer.endOffsets(List(tp).asJava).get(tp)
-        } finally {
-          consumer.close()
-        }
-      Math.max(result, 0)
+      readHighestSequenceNr(persistenceId, fromSequenceNr)
     }
     future.onComplete {
       case Success(value) =>
