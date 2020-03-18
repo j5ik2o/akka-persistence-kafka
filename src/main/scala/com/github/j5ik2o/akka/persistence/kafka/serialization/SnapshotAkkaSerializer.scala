@@ -4,19 +4,19 @@ import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, InputStream, Outpu
 
 import akka.actor.ExtendedActorSystem
 import akka.persistence.SnapshotMetadata
-import akka.persistence.serialization.Snapshot
+import akka.persistence.serialization.{ Snapshot => AkkaSnapshot }
 import akka.serialization.{ SerializationExtension, Serializer }
 import com.github.j5ik2o.akka.persistence.kafka.journal.protocol.SnapshotMetadataFormat
-import com.github.j5ik2o.akka.persistence.kafka.snapshot.KafkaSnapshot
+import com.github.j5ik2o.akka.persistence.kafka.snapshot.Snapshot
 
 class SnapshotAkkaSerializer(system: ExtendedActorSystem) extends Serializer {
   override def identifier: Int          = 19720204
   override def includeManifest: Boolean = false
 
   override def toBinary(o: AnyRef): Array[Byte] = o match {
-    case ks: KafkaSnapshot =>
+    case ks: Snapshot =>
       val extension          = SerializationExtension(system)
-      val snapshot           = Snapshot(ks.payload)
+      val snapshot           = AkkaSnapshot(ks.payload)
       val snapshotSerializer = extension.findSerializerFor(snapshot)
 
       val snapshotBytes = snapshotSerializer.toBinary(snapshot)
@@ -44,8 +44,8 @@ class SnapshotAkkaSerializer(system: ExtendedActorSystem) extends Serializer {
     val metadataFormat = SnapshotMetadataFormat.parseFrom(metadataBytes)
     val metadata =
       SnapshotMetadata(metadataFormat.persistenceId, metadataFormat.sequenceNumber, metadataFormat.timestamp)
-    val snapshot = extension.deserialize(snapshotBytes, classOf[Snapshot]).get
-    KafkaSnapshot(metadata, snapshot.data)
+    val snapshot = extension.deserialize(snapshotBytes, classOf[AkkaSnapshot]).get
+    Snapshot(metadata, snapshot.data)
   }
 
   private def writeInt(outputStream: OutputStream, i: Int): Unit =

@@ -7,11 +7,6 @@ import akka.persistence.journal.AsyncWriteJournal
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.{ Serialization, SerializationExtension }
 import akka.stream.scaladsl.{ Keep, Sink, Source }
-import com.github.j5ik2o.akka.persistence.kafka.journal.KafkaJournalProtocol.{
-  ReadHighestSequenceNr,
-  ReadHighestSequenceNrFailure,
-  ReadHighestSequenceNrSuccess
-}
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
@@ -80,18 +75,6 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   private def resolvePartition(persistenceId: PersistenceId): Int =
     journalPartitionResolver.resolve(persistenceId).value
-
-  override def receivePluginInternal: Receive = localReceive.orElse(super.receivePluginInternal)
-
-  private def localReceive: Receive = {
-    case ReadHighestSequenceNr(fromSequenceNr, persistenceId, _) =>
-//      try {
-//        val highest = readHighestSequenceNr(persistenceId, fromSequenceNr)
-//        sender() ! ReadHighestSequenceNrSuccess(highest)
-//      } catch {
-//        case e: Exception => sender ! ReadHighestSequenceNrFailure(e)
-//      }
-  }
 
   override def asyncWriteMessages(atomicWrites: immutable.Seq[AtomicWrite]): Future[immutable.Seq[Try[Unit]]] = {
     log.debug(s"asyncWriteMessages($atomicWrites): start")

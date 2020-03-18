@@ -85,7 +85,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
   override def saveAsync(metadata: SnapshotMetadata, snapshot: Any): Future[Unit] = {
     log.debug(s"saveAsync($metadata, $snapshot): start")
     Source
-      .single(KafkaSnapshot(metadata, snapshot))
+      .single(Snapshot(metadata, snapshot))
       .flatMapConcat { snapshot =>
         serialization.serialize(snapshot).fold(Source.failed, bytes => Source.single(bytes))
       }
@@ -121,7 +121,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
       // adjusted = criteria
       snapshot <- {
         // if timestamp was unset on delete, matches only on same sequence nr
-        def matcher(snapshot: KafkaSnapshot): Boolean =
+        def matcher(snapshot: Snapshot): Boolean =
           snapshot.matches(adjusted) &&
           !snapshot.matches(rangeDeletions(persistenceId)) &&
           !singleDeletions(persistenceId).contains(snapshot.metadata) &&
@@ -136,9 +136,9 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     } yield snapshot
   }
 
-  private def load(persistenceId: PersistenceId, matcher: KafkaSnapshot => Boolean): Future[Option[KafkaSnapshot]] = {
+  private def load(persistenceId: PersistenceId, matcher: Snapshot => Boolean): Future[Option[Snapshot]] = {
     val offset = journalSequence.readHighestSequenceNr(persistenceId)
-    def load0(persistenceId: PersistenceId, offset: Long): Future[Option[KafkaSnapshot]] =
+    def load0(persistenceId: PersistenceId, offset: Long): Future[Option[Snapshot]] =
       if (offset < 0) Future.successful(None)
       else {
         snapshot(persistenceId, offset).flatMap { s =>
@@ -148,7 +148,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     load0(persistenceId, offset - 1)
   }
 
-  private def snapshot(persistenceId: PersistenceId, offset: Long): Future[KafkaSnapshot] = {
+  private def snapshot(persistenceId: PersistenceId, offset: Long): Future[Snapshot] = {
     Consumer
       .plainSource(
         consumerSettings,
@@ -160,7 +160,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
         )
       )
       .take(1)
-      .map { record => serialization.deserialize(record.value(), classOf[KafkaSnapshot]).get }
+      .map { record => serialization.deserialize(record.value(), classOf[Snapshot]).get }
       .runWith(Sink.head)
   }
 

@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.persistence.SnapshotMetadata
 import akka.serialization.SerializationExtension
 import akka.testkit.TestKit
-import com.github.j5ik2o.akka.persistence.kafka.snapshot.KafkaSnapshot
+import com.github.j5ik2o.akka.persistence.kafka.snapshot.Snapshot
 import com.typesafe.config.ConfigFactory
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -21,7 +21,7 @@ class SnapshotAkkaSerializerSpec
           |      kafka-journal = "com.github.j5ik2o.akka.persistence.kafka.serialization.SnapshotAkkaSerializer"
           |    }
           |    serialization-bindings {
-          |      "com.github.j5ik2o.akka.persistence.kafka.snapshot.KafkaSnapshot" = kafka-journal
+          |      "com.github.j5ik2o.akka.persistence.kafka.snapshot.Snapshot" = kafka-journal
           |    }
           |  }
           |}
@@ -35,7 +35,7 @@ class SnapshotAkkaSerializerSpec
   "SnapshotAkkaSerializerSpec" - {
     "serialization" in {
       val serialization = SerializationExtension(system)
-      val snapshot = KafkaSnapshot(
+      val snapshot = Snapshot(
         SnapshotMetadata(
           persistenceId = "aaaa",
           sequenceNr = 1
@@ -44,7 +44,7 @@ class SnapshotAkkaSerializerSpec
       )
       val serializer = serialization.findSerializerFor(snapshot)
       val binary     = serializer.toBinary(snapshot)
-      val reversed   = serialization.deserialize(binary, classOf[KafkaSnapshot]).get
+      val reversed   = serialization.deserialize(binary, classOf[Snapshot]).get
       reversed shouldBe snapshot
     }
   }

@@ -4,7 +4,7 @@ import akka.persistence.CapabilityFlag
 import akka.persistence.journal.JournalPerfSpec
 import com.typesafe.config.ConfigFactory
 import net.manub.embeddedkafka.{ EmbeddedKafka, EmbeddedKafkaConfig }
-import org.scalatest.{ BeforeAndAfter, BeforeAndAfterAll }
+import org.scalatest.BeforeAndAfterAll
 
 class KafkaJournalPerfSpec
     extends JournalPerfSpec(
