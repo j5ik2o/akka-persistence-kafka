@@ -80,7 +80,8 @@ val coreSettings = Seq(
     ),
   PB.targets in Compile := Seq(
       scalapb.gen() -> (sourceManaged in Compile).value
-    )
+    ),
+  parallelExecution in Test := false
 )
 
 lazy val `root` = (project in file("."))

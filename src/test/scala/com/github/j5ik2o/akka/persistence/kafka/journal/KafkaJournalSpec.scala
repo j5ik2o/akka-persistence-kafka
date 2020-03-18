@@ -4,7 +4,7 @@ import akka.persistence.CapabilityFlag
 import akka.persistence.journal.JournalSpec
 import com.typesafe.config.ConfigFactory
 import net.manub.embeddedkafka.{ EmbeddedKafka, EmbeddedKafkaConfig }
-import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 
 class KafkaJournalSpec
     extends JournalSpec(
@@ -12,17 +12,20 @@ class KafkaJournalSpec
                                 |akka.test.single-expect-default = 60s
       """.stripMargin).withFallback(ConfigFactory.load())
     )
-    with BeforeAndAfter {
+    with BeforeAndAfterAll {
 
-  implicit val kafkaConfig: EmbeddedKafkaConfig =
-    EmbeddedKafkaConfig()
+  implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
+    customBrokerProperties = Map("num.partitions" -> "12")
+  )
 
-  before {
+  protected override def beforeAll(): Unit = {
+    super.beforeAll()
     EmbeddedKafka.start()
   }
 
-  after {
+  protected override def afterAll(): Unit = {
     EmbeddedKafka.stop()
+    super.afterAll()
   }
 
   override protected def supportsRejectingNonSerializableObjects: CapabilityFlag = CapabilityFlag.on()

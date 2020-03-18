@@ -4,7 +4,7 @@ import akka.persistence.CapabilityFlag
 import akka.persistence.journal.JournalPerfSpec
 import com.typesafe.config.ConfigFactory
 import net.manub.embeddedkafka.{ EmbeddedKafka, EmbeddedKafkaConfig }
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{ BeforeAndAfter, BeforeAndAfterAll }
 
 class KafkaJournalPerfSpec
     extends JournalPerfSpec(
@@ -12,19 +12,23 @@ class KafkaJournalPerfSpec
                               |akka.test.single-expect-default = 60s
       """.stripMargin).withFallback(ConfigFactory.load())
     )
-    with BeforeAndAfter {
+    with BeforeAndAfterAll {
 
-  implicit val kafkaConfig: EmbeddedKafkaConfig =
-    EmbeddedKafkaConfig()
+  implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
+    customBrokerProperties = Map("num.partitions" -> "12")
+  )
 
-  before {
+  protected override def beforeAll(): Unit = {
+    super.beforeAll()
     EmbeddedKafka.start()
   }
 
-  after {
+  protected override def afterAll(): Unit = {
     EmbeddedKafka.stop()
+    super.afterAll()
   }
-  override def eventsCount: Int = 10 * 1
+
+  override def eventsCount: Int = 500
 
   /** Number of measurement iterations each test will be run. */
   override def measurementIterations: Int = 1

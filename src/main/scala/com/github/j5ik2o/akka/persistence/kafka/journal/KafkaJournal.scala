@@ -19,7 +19,7 @@ import com.github.j5ik2o.akka.persistence.kafka.utils.ClassUtil
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.{ ConsumerConfig, Consumer => KafkaConsumer }
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{
@@ -75,22 +75,22 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   // Transient deletions only to pass TCK (persistent not supported)
   private var deletions: Deletions = Map.empty
 
-  private def resolvePartition(persistenceId: PersistenceId): Int =
-    journalPartitionResolver.resolve(persistenceId).value
-
   private def resolveTopic(persistenceId: PersistenceId): String =
     journalTopicResolver.resolve(persistenceId).asString
+
+  private def resolvePartition(persistenceId: PersistenceId): Int =
+    journalPartitionResolver.resolve(persistenceId).value
 
   override def receivePluginInternal: Receive = localReceive.orElse(super.receivePluginInternal)
 
   private def localReceive: Receive = {
     case ReadHighestSequenceNr(fromSequenceNr, persistenceId, _) =>
-      try {
-        val highest = readHighestSequenceNr(persistenceId, fromSequenceNr)
-        sender() ! ReadHighestSequenceNrSuccess(highest)
-      } catch {
-        case e: Exception => sender ! ReadHighestSequenceNrFailure(e)
-      }
+//      try {
+//        val highest = readHighestSequenceNr(persistenceId, fromSequenceNr)
+//        sender() ! ReadHighestSequenceNrSuccess(highest)
+//      } catch {
+//        case e: Exception => sender ! ReadHighestSequenceNrFailure(e)
+//      }
   }
 
   override def asyncWriteMessages(atomicWrites: immutable.Seq[AtomicWrite]): Future[immutable.Seq[Try[Unit]]] = {
@@ -238,26 +238,15 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     future
   }
 
-  private def readHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Long = {
-    val topic     = resolveTopic(PersistenceId(persistenceId))
-    val partition = resolvePartition(PersistenceId(persistenceId))
-    val tp        = new TopicPartition(topic, partition)
-    val consumer  = consumerSettings.createKafkaConsumer()
-    val result =
-      try {
-        consumer.assign(List(tp).asJava)
-        consumer.seek(tp, fromSequenceNr)
-        consumer.endOffsets(List(tp).asJava).get(tp)
-      } finally {
-        consumer.close()
-      }
-    Math.max(result, 0)
-  }
-
   override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] = {
     val future = Future {
       log.debug("asyncReadHighestSequenceNr({},{}): start", persistenceId, fromSequenceNr)
-      readHighestSequenceNr(persistenceId, fromSequenceNr)
+      val journalSequence = new JournalSequence(consumerSettings, journalTopicResolver, journalPartitionResolver)
+      try {
+        journalSequence.readHighestSequenceNr(PersistenceId(persistenceId), Some(fromSequenceNr))
+      } finally {
+        journalSequence.close()
+      }
     }
     future.onComplete {
       case Success(value) =>
@@ -268,4 +257,30 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     future
   }
 
+}
+
+class JournalSequence(
+    consumerSettings: ConsumerSettings[String, Array[Byte]],
+    journalTopicResolver: KafkaTopicResolver,
+    journalPartitionResolver: KafkaPartitionResolver
+) {
+  private val consumer: KafkaConsumer[String, Array[Byte]] = consumerSettings.createKafkaConsumer()
+
+  def close(): Unit = consumer.close()
+
+  def readHighestSequenceNr(
+      persistenceId: PersistenceId,
+      fromSequenceNr: Option[Long] = None
+  ): Long = {
+    val tp =
+      new TopicPartition(
+        journalTopicResolver.resolve(persistenceId).asString,
+        journalPartitionResolver.resolve(persistenceId).value
+      )
+    consumer.assign(List(tp).asJava)
+    fromSequenceNr.foreach(consumer.seek(tp, _))
+    val result =
+      consumer.endOffsets(List(tp).asJava).get(tp)
+    Math.max(result, 0)
+  }
 }
