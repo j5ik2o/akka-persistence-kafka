@@ -57,16 +57,18 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
   private val serialization = SerializationExtension(context.system)
 
   protected val journalTopicResolver: KafkaTopicResolver =
-    config
-      .getAs[String]("snapshot.topic-resolver-class-name")
-      .map { name => ClassUtil.create(classOf[KafkaTopicResolver], name) }
-      .getOrElse(KafkaTopicResolver.PersistenceId)
+    ClassUtil.create(
+      classOf[KafkaTopicResolver],
+      config
+        .as[String]("topic-resolver-class-name")
+    )
 
   protected val journalPartitionResolver: KafkaPartitionResolver =
-    config
-      .getAs[String]("snapshot.partition-resolver-class-name")
-      .map { name => ClassUtil.create(classOf[KafkaPartitionResolver], name) }
-      .getOrElse(KafkaPartitionResolver.PartitionOne)
+    ClassUtil.create(
+      classOf[KafkaPartitionResolver],
+      config
+        .as[String]("partition-resolver-class-name")
+    )
 
   override def postStop(): Unit = {
     journalSequence.close()

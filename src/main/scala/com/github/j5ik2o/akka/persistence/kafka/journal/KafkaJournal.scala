@@ -56,16 +56,18 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       .withBootstrapServers(bootstrapServers)
 
   protected val journalTopicResolver: KafkaTopicResolver =
-    config
-      .getAs[String]("topic-resolver-class-name")
-      .map { name => ClassUtil.create(classOf[KafkaTopicResolver], name) }
-      .getOrElse(KafkaTopicResolver.PersistenceId)
+    ClassUtil.create(
+      classOf[KafkaTopicResolver],
+      config
+        .as[String]("topic-resolver-class-name")
+    )
 
-  protected val journalPartitionResolver: KafkaPartitionResolver =
-    config
-      .getAs[String]("partition-resolver-class-name")
-      .map { name => ClassUtil.create(classOf[KafkaPartitionResolver], name) }
-      .getOrElse(KafkaPartitionResolver.PartitionZero)
+  protected val journalPartitionResolver: KafkaPartitionResolver = ClassUtil
+    .create(
+      classOf[KafkaPartitionResolver],
+      config
+        .as[String]("partition-resolver-class-name")
+    )
 
   private def resolveTopic(persistenceId: PersistenceId): String =
     journalTopicResolver.resolve(persistenceId).asString

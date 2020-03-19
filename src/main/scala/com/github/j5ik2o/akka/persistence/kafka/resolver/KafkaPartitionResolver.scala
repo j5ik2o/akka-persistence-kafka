@@ -10,12 +10,12 @@ trait KafkaPartitionResolver {
 
 object KafkaPartitionResolver {
 
-  object PartitionZero extends KafkaPartitionResolver {
+  class PartitionZero extends KafkaPartitionResolver {
     override def resolve(persistenceId: PersistenceId): KafkaPartition =
       KafkaPartition(0)
   }
 
-  object PartitionOne extends KafkaPartitionResolver {
+  class PartitionOne extends KafkaPartitionResolver {
     override def resolve(persistenceId: PersistenceId): KafkaPartition =
       KafkaPartition(1)
   }

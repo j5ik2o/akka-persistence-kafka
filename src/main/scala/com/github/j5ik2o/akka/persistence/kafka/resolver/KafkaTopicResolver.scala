@@ -1,17 +1,17 @@
 package com.github.j5ik2o.akka.persistence.kafka.resolver
 
-import com.github.j5ik2o.akka.persistence.kafka.journal.PersistenceId
+import com.github.j5ik2o.akka.persistence.kafka.journal.{ PersistenceId => PID }
 
 trait KafkaTopicResolver {
 
-  def resolve(persistenceId: PersistenceId): KafkaTopic
+  def resolve(persistenceId: PID): KafkaTopic
 
 }
 
 object KafkaTopicResolver {
 
-  object PersistenceId extends KafkaTopicResolver {
-    override def resolve(persistenceId: PersistenceId): KafkaTopic = {
+  class PersistenceId extends KafkaTopicResolver {
+    override def resolve(persistenceId: PID): KafkaTopic = {
       KafkaTopic(persistenceId.asString)
     }
   }
