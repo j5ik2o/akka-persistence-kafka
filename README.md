@@ -45,11 +45,12 @@ akka.persistence.snapshot-store.plugin = "j5ik2o.kafka-snapshot-store"
 
 j5ik2o {
   kafka-journal {
+    topic-prefix = "journal-"
     # if need customize, default is persistence-id
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partion 0
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
-
+    
     bootstrap-servers = ["localhost:6001"]
     consumer {
       # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
@@ -61,6 +62,7 @@ j5ik2o {
   }
 
   kafka-snapshot-store {
+    topic-prefix = "snapshot-"
     # if need customize, default is persistence-id
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partition 1
