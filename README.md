@@ -54,9 +54,9 @@ j5ik2o {
       }
     }
     # if need customize, default is persistence-id
-    topic-resolver-class-name = "my.MyJournalTopicResolver"
+    topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partion 0
-    partition-resolver-class-name = "my.MyJournalPartitionResolver"
+    partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
   }
 
   kafka-snapshot-store {
@@ -69,9 +69,9 @@ j5ik2o {
       }
     }
     # if need customize, default is persistence-id
-    topic-resolver-class-name = "my.MySnapshotTopicResolver"
+    topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partition 1
-    partition-resolver-class-name = "my.MySnapshotlPartitionResolver"
+    partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionOne"
   }
 }
 ```
