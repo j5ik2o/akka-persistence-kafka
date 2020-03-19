@@ -230,7 +230,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       case Success(value) =>
         log.debug("asyncReadHighestSequenceNr({},{}): finished, succeeded({})", persistenceId, fromSequenceNr, value)
       case Failure(ex) =>
-        log.debug("asyncReadHighestSequenceNr({},{}): finished, failed({})", persistenceId, fromSequenceNr, ex)
+        log.error(ex, "asyncReadHighestSequenceNr({},{}): finished, failed({})", persistenceId, fromSequenceNr, ex)
     }
     future
   }

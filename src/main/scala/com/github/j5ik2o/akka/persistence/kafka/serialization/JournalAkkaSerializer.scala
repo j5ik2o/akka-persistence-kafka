@@ -46,7 +46,7 @@ class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer 
         .get,
       tags = journalFormat.tags.toList
     )
-    logger.debug("journal = {}", result)
+    logger.debug("fromBinary:journal = {}", result)
     result
   }
 }
