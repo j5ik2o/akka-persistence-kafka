@@ -49,6 +49,7 @@ j5ik2o {
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partion 0
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
+
     bootstrap-servers = ["localhost:6001"]
     consumer {
       # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
@@ -64,6 +65,7 @@ j5ik2o {
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partition 1
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionOne"
+
     bootstrap-servers = ["localhost:6001"]
     consumer {
       # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
