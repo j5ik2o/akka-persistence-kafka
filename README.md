@@ -30,4 +30,47 @@ libraryDependencies += Seq(
 )
 ```
 
+## Configration
+
+The minimum necessary settings are as follows.
+
+```hocon
+# if use journal plugin
+akka.persistence.journal.plugin = "j5ik2o.kafka-journal"
+# if use snapshot plugin
+akka.persistence.snapshot-store.plugin = "j5ik2o.kafka-snapshot-store"
+
+j5ik2o {
+  kafka-journal {
+    bootstrap-servers = ["localhost:6001"]
+    consumer {
+      # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
+      # can be defined in this configuration section.
+      kafka-clients {
+        group.id = "test"
+      }
+    }
+    # if need customize, default is persistence-id
+    topic-resolver-class-name = "my.MyJournalTopicResolver"
+    # if need customize, default is partion 0
+    partition-resolver-class-name = "my.MyJournalPartitionResolver"
+  }
+
+  kafka-snapshot-store {
+    bootstrap-servers = ["localhost:6001"]
+    consumer {
+      # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
+      # can be defined in this configuration section.
+      kafka-clients {
+        group.id = "test"
+      }
+    }
+    # if need customize, default is persistence-id
+    topic-resolver-class-name = "my.MySnapshotTopicResolver"
+    # if need customize, default is partition 1
+    partition-resolver-class-name = "my.MySnapshotlPartitionResolver"
+  }
+}
+```
+
 
