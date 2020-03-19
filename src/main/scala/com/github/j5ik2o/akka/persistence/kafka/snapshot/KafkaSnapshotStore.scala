@@ -51,6 +51,12 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
       .withBootstrapServers(bootstrapServers)
 
+  private def resolveTopic(persistenceId: PersistenceId): String =
+    config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString
+
+  private def resolvePartition(persistenceId: PersistenceId): Int =
+    journalPartitionResolver.resolve(persistenceId).value
+
   private var rangeDeletions: RangeDeletions   = Map.empty.withDefaultValue(SnapshotSelectionCriteria.None)
   private var singleDeletions: SingleDeletions = Map.empty.withDefaultValue(Nil)
 
@@ -75,13 +81,12 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     super.postStop()
   }
 
-  protected def resolveTopic(persistenceId: PersistenceId): String =
-    journalTopicResolver.resolve(persistenceId).asString
-
-  protected def resolvePartition(persistenceId: PersistenceId): Int =
-    journalPartitionResolver.resolve(persistenceId).value
-
-  protected val journalSequence = new JournalSequence(consumerSettings, journalTopicResolver, journalPartitionResolver)
+  protected val journalSequence = new JournalSequence(
+    consumerSettings,
+    config.as[String]("topic-prefix"),
+    journalTopicResolver,
+    journalPartitionResolver
+  )
 
   override def saveAsync(metadata: SnapshotMetadata, snapshot: Any): Future[Unit] = {
     log.debug(s"saveAsync($metadata, $snapshot): start")
@@ -155,8 +160,8 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
         consumerSettings,
         Subscriptions.assignmentWithOffset(
           new TopicPartition(
-            journalTopicResolver.resolve(persistenceId).asString,
-            journalPartitionResolver.resolve(persistenceId).value
+            resolveTopic(persistenceId),
+            resolvePartition(persistenceId)
           ) -> offset
         )
       )
