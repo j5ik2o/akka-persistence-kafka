@@ -88,5 +88,5 @@ val coreSettings = Seq(
 lazy val `root` = (project in file("."))
   .settings(coreSettings)
   .settings(
-    name := "akka-persistence-kafka-awesome"
+    name := "akka-persistence-kafka"
   )
