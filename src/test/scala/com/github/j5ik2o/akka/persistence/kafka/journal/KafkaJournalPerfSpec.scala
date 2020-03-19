@@ -31,7 +31,7 @@ class KafkaJournalPerfSpec
   override def eventsCount: Int = 500
 
   /** Number of measurement iterations each test will be run. */
-  override def measurementIterations: Int = 1
+  override def measurementIterations: Int = 2
 
   override def awaitDurationMillis: Long = 20000
 
