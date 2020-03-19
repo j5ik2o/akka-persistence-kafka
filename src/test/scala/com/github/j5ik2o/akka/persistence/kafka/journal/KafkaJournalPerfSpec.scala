@@ -39,6 +39,6 @@ class KafkaJournalPerfSpec
 
   override protected def supportsRejectingNonSerializableObjects: CapabilityFlag = CapabilityFlag.on()
 
-  override protected def supportsSerialization: CapabilityFlag = CapabilityFlag.off()
+  override protected def supportsSerialization: CapabilityFlag = CapabilityFlag.on()
 
 }

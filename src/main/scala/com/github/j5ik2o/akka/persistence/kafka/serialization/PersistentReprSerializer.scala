@@ -3,11 +3,11 @@ package com.github.j5ik2o.akka.persistence.kafka.serialization
 import akka.persistence.journal.Tagged
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.Serialization
-import com.github.j5ik2o.akka.persistence.kafka.journal.{ Journal, PersistenceId, SequenceNumber }
+import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalRow, PersistenceId, SequenceNumber }
 import com.github.j5ik2o.akka.persistence.kafka.utils.EitherSeq
 
 object PersistentReprSerializer {
-  type JournalWithByteArray = (Journal, Array[Byte])
+  type JournalWithByteArray = (JournalRow, Array[Byte])
 
 }
 
@@ -22,14 +22,8 @@ class PersistentReprSerializer(serialization: Serialization) {
       tags: Set[String],
       index: Option[Int]
   ): Either[Throwable, JournalWithByteArray] = {
-    val journal = Journal(
-      persistenceId = PersistenceId(persistentRepr.persistenceId),
-      sequenceNumber = SequenceNumber(persistentRepr.sequenceNr),
-      payload = persistentRepr.payload,
-      deleted = persistentRepr.deleted,
-      manifest = persistentRepr.manifest,
-      timestamp = persistentRepr.timestamp,
-      writerUuid = persistentRepr.writerUuid,
+    val journal = JournalRow(
+      persistentRepr = persistentRepr,
       tags = tags.toSeq,
       ordering = index
     )

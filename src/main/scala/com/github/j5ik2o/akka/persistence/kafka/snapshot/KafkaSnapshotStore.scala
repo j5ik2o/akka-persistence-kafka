@@ -84,7 +84,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
   override def saveAsync(metadata: SnapshotMetadata, snapshot: Any): Future[Unit] = {
     log.debug(s"saveAsync($metadata, $snapshot): start")
     Source
-      .single(Snapshot(metadata, snapshot))
+      .single(SnapshotRow(metadata, snapshot))
       .flatMapConcat { snapshot =>
         serialization.serialize(snapshot).fold(Source.failed, bytes => Source.single(bytes))
       }
@@ -120,7 +120,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
       // adjusted = criteria
       snapshot <- {
         // if timestamp was unset on delete, matches only on same sequence nr
-        def matcher(snapshot: Snapshot): Boolean =
+        def matcher(snapshot: SnapshotRow): Boolean =
           snapshot.matches(adjusted) &&
           !snapshot.matches(rangeDeletions(persistenceId)) &&
           !singleDeletions(persistenceId).contains(snapshot.metadata) &&
@@ -135,9 +135,9 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     } yield snapshot
   }
 
-  private def load(persistenceId: PersistenceId, matcher: Snapshot => Boolean): Future[Option[Snapshot]] = {
+  private def load(persistenceId: PersistenceId, matcher: SnapshotRow => Boolean): Future[Option[SnapshotRow]] = {
     val offset = journalSequence.readHighestSequenceNr(persistenceId)
-    def load0(persistenceId: PersistenceId, offset: Long): Future[Option[Snapshot]] =
+    def load0(persistenceId: PersistenceId, offset: Long): Future[Option[SnapshotRow]] =
       if (offset < 0) Future.successful(None)
       else {
         snapshot(persistenceId, offset).flatMap { s =>
@@ -147,7 +147,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     load0(persistenceId, offset - 1)
   }
 
-  private def snapshot(persistenceId: PersistenceId, offset: Long): Future[Snapshot] = {
+  private def snapshot(persistenceId: PersistenceId, offset: Long): Future[SnapshotRow] = {
     Consumer
       .plainSource(
         consumerSettings,
@@ -159,7 +159,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
         )
       )
       .take(1)
-      .map { record => serialization.deserialize(record.value(), classOf[Snapshot]).get }
+      .map { record => serialization.deserialize(record.value(), classOf[SnapshotRow]).get }
       .runWith(Sink.head)
   }
 

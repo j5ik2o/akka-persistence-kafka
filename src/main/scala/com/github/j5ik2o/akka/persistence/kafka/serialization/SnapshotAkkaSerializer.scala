@@ -7,7 +7,7 @@ import akka.persistence.SnapshotMetadata
 import akka.persistence.serialization.{ Snapshot => AkkaSnapshot }
 import akka.serialization.{ SerializationExtension, Serializer }
 import com.github.j5ik2o.akka.persistence.kafka.protocol.SnapshotMetadataFormat
-import com.github.j5ik2o.akka.persistence.kafka.snapshot.Snapshot
+import com.github.j5ik2o.akka.persistence.kafka.snapshot.SnapshotRow
 
 object SnapshotAkkaSerializer {
   val Identifier = 15442
@@ -18,7 +18,7 @@ class SnapshotAkkaSerializer(system: ExtendedActorSystem) extends Serializer {
   override def includeManifest: Boolean = false
 
   override def toBinary(o: AnyRef): Array[Byte] = o match {
-    case ks: Snapshot =>
+    case ks: SnapshotRow =>
       val extension          = SerializationExtension(system)
       val snapshot           = AkkaSnapshot(ks.payload)
       val snapshotSerializer = extension.findSerializerFor(snapshot)
@@ -42,10 +42,10 @@ class SnapshotAkkaSerializer(system: ExtendedActorSystem) extends Serializer {
 
     val metadata = snapshotMetadataFromBinary(metadataBytes)
     val snapshot = extension.deserialize(snapshotBytes, classOf[AkkaSnapshot]).get
-    Snapshot(metadata, snapshot.data)
+    SnapshotRow(metadata, snapshot.data)
   }
 
-  private def snapshotMetadataToBinary(ks: Snapshot): Array[Byte] = {
+  private def snapshotMetadataToBinary(ks: SnapshotRow): Array[Byte] = {
     SnapshotMetadataFormat(
       persistenceId = ks.metadata.persistenceId,
       sequenceNumber = ks.metadata.sequenceNr,

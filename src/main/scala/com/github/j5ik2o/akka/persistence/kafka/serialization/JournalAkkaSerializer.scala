@@ -1,9 +1,10 @@
 package com.github.j5ik2o.akka.persistence.kafka.serialization
 
 import akka.actor.ExtendedActorSystem
+import akka.persistence.PersistentRepr
 import akka.serialization.{ SerializationExtension, Serializer => AkkaSerializer }
-import com.github.j5ik2o.akka.persistence.kafka.journal.{ Journal, PersistenceId, SequenceNumber }
-import com.github.j5ik2o.akka.persistence.kafka.protocol.{ JournalFormat, PayloadFormat }
+import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalRow, PersistenceId, SequenceNumber }
+import com.github.j5ik2o.akka.persistence.kafka.protocol.JournalFormat
 import com.google.protobuf.ByteString
 import org.slf4j.LoggerFactory
 
@@ -18,24 +19,13 @@ class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer 
   override def includeManifest: Boolean = false
 
   override def toBinary(o: AnyRef): Array[Byte] = o match {
-    case journal: Journal =>
+    case journal: JournalRow =>
       logger.debug("toBinary:journal = {}", journal)
-      val data       = journal.payload.asInstanceOf[AnyRef]
-      val serializer = SerializationExtension(system).findSerializerFor(data)
-      logger.debug("toBinary:serializer = {}", serializer)
-      logger.debug("toBinary:serializer.identifier = {}", serializer.identifier)
+      val serializer = SerializationExtension(system).findSerializerFor(journal.persistentRepr)
       JournalFormat(
         persistenceId = journal.persistenceId.asString,
         sequenceNumber = journal.sequenceNumber.value,
-        payload = Some(
-          PayloadFormat(
-            serializerId = serializer.identifier,
-            data = ByteString.copyFrom(serializer.toBinary(data)),
-            hasDataManifest = serializer.includeManifest,
-            dataManifest =
-              if (serializer.includeManifest) ByteString.copyFromUtf8(data.getClass.getName) else ByteString.EMPTY
-          )
-        ),
+        persistentRepr = ByteString.copyFrom(serializer.toBinary(journal.persistentRepr)),
         deleted = journal.deleted,
         manifest = journal.manifest,
         timestamp = journal.timestamp,
@@ -47,30 +37,13 @@ class JournalAkkaSerializer(system: ExtendedActorSystem) extends AkkaSerializer 
 
   override def fromBinary(bytes: Array[Byte], manifest: Option[Class[_]]): AnyRef = {
     val journalFormat = JournalFormat.parseFrom(bytes)
-    require(journalFormat.payload.isDefined)
-    val payload = journalFormat.payload.get
-
-    logger.debug("fromBinary:payload.serializerId = {}", payload.serializerId)
-
-    val clazz =
-      if (payload.hasDataManifest)
-        Some(system.dynamicAccess.getClassFor[AnyRef](payload.dataManifest.toStringUtf8).get)
-      else None
-
-    val result = Journal(
-      persistenceId = PersistenceId(journalFormat.persistenceId),
-      sequenceNumber = SequenceNumber(journalFormat.sequenceNumber),
-      payload = SerializationExtension(system)
+    val result = JournalRow(
+      persistentRepr = SerializationExtension(system)
         .deserialize(
-          payload.data.toByteArray,
-          payload.serializerId,
-          clazz
+          journalFormat.persistentRepr.toByteArray,
+          classOf[PersistentRepr]
         )
         .get,
-      deleted = journalFormat.deleted,
-      manifest = journalFormat.manifest,
-      timestamp = journalFormat.timestamp,
-      writerUuid = journalFormat.writerUuid,
       tags = journalFormat.tags.toList
     )
     logger.debug("journal = {}", result)

@@ -57,13 +57,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   protected val journalTopicResolver: KafkaTopicResolver =
     config
-      .getAs[String]("journal.topic-resolver-class-name")
+      .getAs[String]("topic-resolver-class-name")
       .map { name => ClassUtil.create(classOf[KafkaTopicResolver], name) }
       .getOrElse(KafkaTopicResolver.PersistenceId)
 
   protected val journalPartitionResolver: KafkaPartitionResolver =
     config
-      .getAs[String]("journal.partition-resolver-class-name")
+      .getAs[String]("partition-resolver-class-name")
       .map { name => ClassUtil.create(classOf[KafkaPartitionResolver], name) }
       .getOrElse(KafkaPartitionResolver.PartitionZero)
 
@@ -180,21 +180,14 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
           )
           .flatMapConcat { record =>
             serialization
-              .deserialize(record.value(), classOf[Journal])
+              .deserialize(record.value(), classOf[JournalRow])
               .fold(Source.failed, journal => Source.single((record, journal)))
           }
           .map {
             case (record, journal) =>
               (
                 record,
-                PersistentRepr(
-                  persistenceId = journal.persistenceId.asString,
-                  sequenceNr = journal.sequenceNumber.value,
-                  payload = journal.payload,
-                  deleted = journal.deleted,
-                  manifest = journal.manifest,
-                  writerUuid = journal.writerUuid
-                ).withTimestamp(journal.timestamp)
+                journal.persistentRepr
               )
           }
           .map {
