@@ -27,4 +27,4 @@ data/
 
 .DS_Store
 .credentials
-
+.gpgCredentials
