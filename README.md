@@ -54,7 +54,7 @@ j5ik2o {
       # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
       # can be defined in this configuration section.
       kafka-clients {
-        group.id = "test"
+        group.id = "akka-persistence-journal"
       }
     }
   }
@@ -69,7 +69,7 @@ j5ik2o {
       # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
       # can be defined in this configuration section.
       kafka-clients {
-        group.id = "test"
+        group.id = "akka-persistence-snapshot"
       }
     }
   }
