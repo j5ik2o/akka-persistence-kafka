@@ -10,6 +10,7 @@ import scala.jdk.CollectionConverters._
 
 class JournalSequence(
     consumerSettings: ConsumerSettings[String, Array[Byte]],
+    topicPrefix: String,
     journalTopicResolver: KafkaTopicResolver,
     journalPartitionResolver: KafkaPartitionResolver
 ) {
@@ -28,7 +29,7 @@ class JournalSequence(
   ): Long = {
     val tp =
       new TopicPartition(
-        journalTopicResolver.resolve(persistenceId).asString,
+        topicPrefix + journalTopicResolver.resolve(persistenceId).asString,
         journalPartitionResolver.resolve(persistenceId).value
       )
     consumer.assign(List(tp).asJava)

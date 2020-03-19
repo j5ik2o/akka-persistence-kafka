@@ -70,12 +70,17 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     )
 
   private def resolveTopic(persistenceId: PersistenceId): String =
-    journalTopicResolver.resolve(persistenceId).asString
+    config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString
 
   private def resolvePartition(persistenceId: PersistenceId): Int =
     journalPartitionResolver.resolve(persistenceId).value
 
-  protected val journalSequence = new JournalSequence(consumerSettings, journalTopicResolver, journalPartitionResolver)
+  protected val journalSequence = new JournalSequence(
+    consumerSettings,
+    config.as[String]("topic-prefix"),
+    journalTopicResolver,
+    journalPartitionResolver
+  )
 
   // Transient deletions only to pass TCK (persistent not supported)
   private var deletions: Deletions = Map.empty
