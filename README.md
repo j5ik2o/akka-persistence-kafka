@@ -11,10 +11,8 @@ akka-persistence-kafka writes journal and snapshot entries to Kafka.
 - Scala: `2.12.x` or `2.13.x` 
 - Akka: `2.6.x+`
 - Java: `1.8+`
-
-### Alpakka Support
-
-Supports [alpakka-kafka](https://github.com/akka/alpakka-kafka).
+- [Alpakka-Kafka](https://github.com/akka/alpakka-kafka) 2.0+.
+- Kafka 2.4+
 
 ## Installation
 
