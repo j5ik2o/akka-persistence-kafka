@@ -32,7 +32,7 @@ val coreSettings = Seq(
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false },
   pomExtra := {
-    <url>https://github.com/j5ik2o/akka-persistence-kafka-awesome</url>
+    <url>https://github.com/j5ik2o/akka-persistence-kafka</url>
       <licenses>
         <license>
           <name>The MIT License</name>
@@ -40,9 +40,9 @@ val coreSettings = Seq(
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:j5ik2o/akka-persistence-kafka-awesome.git</url>
-        <connection>scm:git:github.com/j5ik2o/akka-persistence-kafka-awesome</connection>
-        <developerConnection>scm:git:git@github.com:j5ik2o/akka-persistence-kafka-awesome.git</developerConnection>
+        <url>git@github.com:j5ik2o/akka-persistence-kafka.git</url>
+        <connection>scm:git:github.com/j5ik2o/akka-persistence-kafka</connection>
+        <developerConnection>scm:git:git@github.com:j5ik2o/akka-persistence-kafka.git</developerConnection>
       </scm>
       <developers>
         <developer>
@@ -51,10 +51,11 @@ val coreSettings = Seq(
         </developer>
       </developers>
   },
-  publishTo in ThisBuild := sonatypePublishTo.value,
+  publishTo := sonatypePublishToBundle.value,
   credentials := {
     val ivyCredentials = (baseDirectory in LocalRootProject).value / ".credentials"
-    Credentials(ivyCredentials) :: Nil
+    val gpgCredentials = (baseDirectory in LocalRootProject).value / ".gpgCredentials"
+    Credentials(ivyCredentials) :: Credentials(gpgCredentials) :: Nil
   },
   resolvers ++= Seq(
       "Sonatype OSS Snapshot Repository" at "https://oss.sonatype.org/content/repositories/snapshots/",
