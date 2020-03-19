@@ -1,6 +1,6 @@
 # akka-persistence-kafka
 
-[![CircleCI](https://circleci.com/gh/j5ik2o/akka-persistence-kafka/tree/master.svg?style=shield&circle-token=9f6f53d09f0fb87ee8ea81246e69683d668291cd)](https://circleci.com/gh/j5ik2o/akka-persistence-kafka/tree/master)
+[![CircleCI](https://circleci.com/gh/j5ik2o/akka-persistence-kafka/tree/master.svg?style=shield&circle-token=c809688daf71f6ae582dd2d58cb5518401498373)](https://circleci.com/gh/j5ik2o/akka-persistence-kafka/tree/master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.j5ik2o/akka-persistence-kafka_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.j5ik2o/akka-persistence-kafka_2.12)
 [![Scaladoc](http://javadoc-badge.appspot.com/com.github.j5ik2o/akka-persistence-kafka_2.12.svg?label=scaladoc)](http://javadoc-badge.appspot.com/com.github.j5ik2o/akka-persistence-kafka_2.12/com/github/j5ik2o/akka/persistence/kafka/index.html?javadocio=true)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
