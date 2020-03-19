@@ -69,7 +69,6 @@ val coreSettings = Seq(
       "com.typesafe.akka"       %% "akka-slf4j"                % akkaVersion,
       "com.typesafe.akka"       %% "akka-stream-kafka"         % alpakkaKafkaVersion,
       "com.typesafe.akka"       %% "akka-persistence"          % akkaVersion,
-      "com.typesafe.akka"       %% "akka-persistence-query"    % akkaVersion,
       "org.scalatest"           %% "scalatest"                 % "3.1.1" % Test,
       "org.scalacheck"          %% "scalacheck"                % "1.14.3" % Test,
       "ch.qos.logback"          % "logback-classic"            % "1.2.3" % Test,
