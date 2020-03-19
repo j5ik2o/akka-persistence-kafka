@@ -13,11 +13,11 @@ akka-persistence-kafka writes journal and snapshot entries to Kafka.
 
 ### Supported versions:
 
+- Java: `1.8+`
 - Scala: `2.12.x` or `2.13.x` 
 - Akka: `2.6.x+`
-- Java: `1.8+`
-- [Alpakka-Kafka](https://github.com/akka/alpakka-kafka) 2.0.x+.
-- Kafka 2.4.x+
+- Kafka `2.4.x+`
+- [Alpakka-Kafka](https://github.com/akka/alpakka-kafka) `2.0.x+.`
 
 ## Installation
 
@@ -45,21 +45,10 @@ akka.persistence.snapshot-store.plugin = "j5ik2o.kafka-snapshot-store"
 
 j5ik2o {
   kafka-journal {
-    bootstrap-servers = ["localhost:6001"]
-    consumer {
-      # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
-      # can be defined in this configuration section.
-      kafka-clients {
-        group.id = "test"
-      }
-    }
     # if need customize, default is persistence-id
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partion 0
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
-  }
-
-  kafka-snapshot-store {
     bootstrap-servers = ["localhost:6001"]
     consumer {
       # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
@@ -68,10 +57,21 @@ j5ik2o {
         group.id = "test"
       }
     }
+  }
+
+  kafka-snapshot-store {
     # if need customize, default is persistence-id
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partition 1
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionOne"
+    bootstrap-servers = ["localhost:6001"]
+    consumer {
+      # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
+      # can be defined in this configuration section.
+      kafka-clients {
+        group.id = "test"
+      }
+    }
   }
 }
 ```
