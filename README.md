@@ -67,7 +67,7 @@ j5ik2o {
     topic-prefix = "snapshot-"
     # if need customize, default is persistence-id
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
-    # if need customize, default is partition 1
+    # if need customize, default is partition 0
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
 
     bootstrap-servers = ["localhost:6001"]
