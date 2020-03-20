@@ -5,8 +5,6 @@
 [![Scaladoc](http://javadoc-badge.appspot.com/com.github.j5ik2o/akka-persistence-kafka_2.12.svg?label=scaladoc)](http://javadoc-badge.appspot.com/com.github.j5ik2o/akka-persistence-kafka_2.12/com/github/j5ik2o/akka/persistence/kafka/index.html?javadocio=true)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-STATUS: WIP
-
 akka-persistence-kafka writes journal and snapshot entries to Kafka.
 
 ## Features
