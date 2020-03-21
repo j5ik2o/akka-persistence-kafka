@@ -6,6 +6,8 @@ import akka.serialization.Serialization
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalRow, PersistenceId, SequenceNumber }
 import com.github.j5ik2o.akka.persistence.kafka.utils.EitherSeq
 
+import scala.util.{ Failure, Success }
+
 object PersistentReprSerializer {
   type JournalWithByteArray = (JournalRow, Array[Byte])
 
@@ -27,7 +29,10 @@ class PersistentReprSerializer(serialization: Serialization) {
       tags = tags.toSeq,
       ordering = index
     )
-    serialization.serialize(journal).map((journal, _)).toEither
+    serialization.serialize(journal).map((journal, _)) match {
+      case Failure(ex)    => Left(ex)
+      case Success(value) => Right(value)
+    }
   }
 
   def serialize(persistentRepr: PersistentRepr, index: Option[Int]): Either[Throwable, JournalWithByteArray] = {

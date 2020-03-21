@@ -6,6 +6,7 @@ import akka.kafka.scaladsl.{ Consumer, Producer }
 import akka.persistence.journal.AsyncWriteJournal
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.{ Serialization, SerializationExtension }
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Keep, Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
@@ -35,8 +36,9 @@ object KafkaJournal {
 
 class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   import KafkaJournal._
-  implicit val ec: ExecutionContext = context.dispatcher
-  implicit val system: ActorSystem  = context.system
+  implicit val ec: ExecutionContext   = context.dispatcher
+  implicit val system: ActorSystem    = context.system
+  implicit val mat: ActorMaterializer = ActorMaterializer()
 
   private val bootstrapServers = config.as[List[String]]("bootstrap-servers").mkString(",")
 
@@ -187,8 +189,10 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
           )
           .flatMapConcat { record =>
             serialization
-              .deserialize(record.value(), classOf[JournalRow])
-              .fold(Source.failed, journal => Source.single((record, journal)))
+              .deserialize(record.value(), classOf[JournalRow]) match {
+              case Failure(ex)      => Source.failed(ex)
+              case Success(journal) => Source.single((record, journal))
+            }
           }
           .map {
             case (record, journal) =>

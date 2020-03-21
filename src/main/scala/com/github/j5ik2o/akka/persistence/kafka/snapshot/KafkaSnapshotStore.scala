@@ -6,6 +6,7 @@ import akka.kafka.{ ConsumerSettings, ProducerSettings, Subscriptions }
 import akka.persistence.snapshot.SnapshotStore
 import akka.persistence.{ SelectedSnapshot, SnapshotMetadata, SnapshotSelectionCriteria }
 import akka.serialization.SerializationExtension
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalSequence, PersistenceId }
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
@@ -23,6 +24,7 @@ import org.apache.kafka.common.serialization.{
 }
 
 import scala.concurrent.Future
+import scala.util.{ Failure, Success }
 
 object KafkaSnapshotStore {
 
@@ -34,7 +36,8 @@ object KafkaSnapshotStore {
 class KafkaSnapshotStore(config: Config) extends SnapshotStore {
   import KafkaSnapshotStore._
   import context.dispatcher
-  implicit val system: ActorSystem = context.system
+  implicit val system: ActorSystem    = context.system
+  implicit val mat: ActorMaterializer = ActorMaterializer()
 
   private val bootstrapServers = config.as[List[String]]("bootstrap-servers").mkString(",")
 
@@ -93,7 +96,10 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     Source
       .single(SnapshotRow(metadata, snapshot))
       .flatMapConcat { snapshot =>
-        serialization.serialize(snapshot).fold(Source.failed, bytes => Source.single(bytes))
+        serialization.serialize(snapshot) match {
+          case Failure(ex)    => Source.failed(ex)
+          case Success(bytes) => Source.single(bytes)
+        }
       }
       .map { snapshotBytes =>
         new ProducerRecord[String, Array[Byte]](
