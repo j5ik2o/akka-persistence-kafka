@@ -1,5 +1,6 @@
 package org.scalatest
 
+import org.scalatest
 package object freespec {
-  type AnyFreeSpecLike = org.scalatest.FreeSpecLike
+  type AnyFreeSpecLike = scalatest.freespec.AnyFreeSpecLike
 }
