@@ -4,7 +4,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.thesamet.scalapb" %% "compilerplugin" % "0.9.0"
+  "com.thesamet.scalapb" %% "compilerplugin" % "0.9.7"
 )
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.3.2")
