@@ -65,13 +65,12 @@ val coreSettings = Seq(
       "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/"
     ),
   libraryDependencies ++= Seq(
-      "org.scala-lang"          % "scala-reflect"              % scalaVersion.value,
-      "com.iheart"              %% "ficus"                     % "1.4.7",
-      "org.slf4j"               % "slf4j-api"                  % "1.7.30",
-      "com.typesafe.akka"       %% "akka-stream-kafka"         % alpakkaKafkaVersion,
-      "ch.qos.logback"          % "logback-classic"            % "1.2.3" % Test,
-      "com.typesafe.akka"       %% "akka-stream-kafka-testkit" % alpakkaKafkaVersion % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka"            % kafkaVersion % Test
+      "org.scala-lang"          % "scala-reflect"      % scalaVersion.value,
+      "com.iheart"              %% "ficus"             % "1.4.7",
+      "org.slf4j"               % "slf4j-api"          % "1.7.30",
+      "com.typesafe.akka"       %% "akka-stream-kafka" % alpakkaKafkaVersion,
+      "ch.qos.logback"          % "logback-classic"    % "1.2.3" % Test,
+      "io.github.embeddedkafka" %% "embedded-kafka"    % kafkaVersion % Test
     ) ++ {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2L, scalaMajor)) if scalaMajor == 13 =>
