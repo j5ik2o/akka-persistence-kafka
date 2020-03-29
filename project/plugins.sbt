@@ -9,7 +9,7 @@ libraryDependencies ++= Seq(
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.3.2")
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.25")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.30")
 
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
 
