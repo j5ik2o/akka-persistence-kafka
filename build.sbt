@@ -1,4 +1,3 @@
-val scala211Version     = "2.11.12"
 val scala212Version     = "2.12.10"
 val scala213Version     = "2.13.1"
 val akka25Version       = "2.5.30"
@@ -9,7 +8,7 @@ val alpakkaKafkaVersion = "2.0.2"
 val coreSettings = Seq(
   sonatypeProfileName := "com.github.j5ik2o",
   organization := "com.github.j5ik2o",
-  scalaVersion := scala211Version,
+  scalaVersion := scala213Version,
   crossScalaVersions ++= Seq(scala212Version, scala213Version),
   scalacOptions ++= {
     Seq(
@@ -20,16 +19,7 @@ val coreSettings = Seq(
       "UTF-8",
       "-language:_",
       "-target:jvm-1.8"
-    ) ++ {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2L, scalaMajor)) if scalaMajor >= 12 =>
-          Seq.empty
-        case Some((2L, scalaMajor)) if scalaMajor <= 11 =>
-          Seq(
-            "-Yinline-warnings"
-          )
-      }
-    }
+    )
   },
   publishMavenStyle := true,
   publishArtifact in Test := false,
@@ -69,6 +59,7 @@ val coreSettings = Seq(
       "com.iheart"              %% "ficus"             % "1.4.7",
       "org.slf4j"               % "slf4j-api"          % "1.7.30",
       "com.typesafe.akka"       %% "akka-stream-kafka" % alpakkaKafkaVersion,
+      "com.thesamet.scalapb"    %% "scalapb-runtime"   % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "ch.qos.logback"          % "logback-classic"    % "1.2.3" % Test,
       "io.github.embeddedkafka" %% "embedded-kafka"    % kafkaVersion % Test
     ) ++ {
@@ -93,17 +84,6 @@ val coreSettings = Seq(
             "com.typesafe.akka"      %% "akka-stream-testkit"     % akka26Version % Test,
             "com.typesafe.akka"      %% "akka-persistence-tck"    % akka26Version % Test,
             "org.scalatest"          %% "scalatest"               % "3.1.1" % Test
-          )
-        case Some((2L, scalaMajor)) if scalaMajor == 11 =>
-          Seq(
-            "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.4",
-            "com.typesafe.akka"      %% "akka-slf4j"              % akka25Version,
-            "com.typesafe.akka"      %% "akka-stream"             % akka25Version,
-            "com.typesafe.akka"      %% "akka-persistence"        % akka25Version,
-            "com.typesafe.akka"      %% "akka-testkit"            % akka25Version % Test,
-            "com.typesafe.akka"      %% "akka-stream-testkit"     % akka25Version % Test,
-            "com.typesafe.akka"      %% "akka-persistence-tck"    % akka25Version % Test,
-            "org.scalatest"          %% "scalatest"               % "3.0.8" % Test
           )
       }
     },
