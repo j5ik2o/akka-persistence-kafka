@@ -26,23 +26,23 @@ val coreSettings = Seq(
   pomIncludeRepository := { _ => false },
   pomExtra := {
     <url>https://github.com/j5ik2o/akka-persistence-kafka</url>
-      <licenses>
-        <license>
-          <name>The MIT License</name>
-          <url>http://opensource.org/licenses/MIT</url>
-        </license>
-      </licenses>
-      <scm>
-        <url>git@github.com:j5ik2o/akka-persistence-kafka.git</url>
-        <connection>scm:git:github.com/j5ik2o/akka-persistence-kafka</connection>
-        <developerConnection>scm:git:git@github.com:j5ik2o/akka-persistence-kafka.git</developerConnection>
-      </scm>
-      <developers>
-        <developer>
-          <id>j5ik2o</id>
-          <name>Junichi Kato</name>
-        </developer>
-      </developers>
+    <licenses>
+      <license>
+        <name>Apache 2</name>
+        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      </license>
+    </licenses>
+    <scm>
+      <url>git@github.com:j5ik2o/akka-persistence-kafka.git</url>
+      <connection>scm:git:github.com/j5ik2o/akka-persistence-kafka</connection>
+      <developerConnection>scm:git:git@github.com:j5ik2o/akka-persistence-kafka.git</developerConnection>
+    </scm>
+    <developers>
+      <developer>
+        <id>j5ik2o</id>
+        <name>Junichi Kato</name>
+      </developer>
+    </developers>
   },
   publishTo := sonatypePublishToBundle.value,
   credentials := {
