@@ -40,8 +40,6 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   implicit val system: ActorSystem    = context.system
   implicit val mat: ActorMaterializer = ActorMaterializer()
 
-  private val bootstrapServers = config.as[List[String]]("bootstrap-servers").mkString(",")
-
   private val producerConfig = config.getConfig("producer")
   private val consumerConfig = config.getConfig("consumer")
 
@@ -51,11 +49,9 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   protected val producerSettings: ProducerSettings[String, Array[Byte]] =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
-      .withBootstrapServers(bootstrapServers)
 
   protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
-      .withBootstrapServers(bootstrapServers)
 
   protected val journalTopicResolver: KafkaTopicResolver =
     ClassUtil.create(
