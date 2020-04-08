@@ -52,12 +52,15 @@ j5ik2o {
     topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partion 0
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
-    
-    bootstrap-servers = ["localhost:6001"]
-    consumer {
-      # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
-      # can be defined in this configuration section.
+   
+    producer {
       kafka-clients {
+        bootstrap.servers = "localhost:6001"
+      }
+    } 
+    consumer {
+      kafka-clients {
+        bootstrap.servers = "localhost:6001"
         group.id = "akka-persistence-journal"
       }
     }
@@ -70,11 +73,14 @@ j5ik2o {
     # if need customize, default is partition 0
     partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
 
-    bootstrap-servers = ["localhost:6001"]
-    consumer {
-      # Properties defined by org.apache.kafka.clients.consumer.ConsumerConfig
-      # can be defined in this configuration section.
+    producer {
       kafka-clients {
+        bootstrap.servers = "localhost:6001"
+      }
+    } 
+    consumer {
+      kafka-clients {
+        bootstrap.servers = "localhost:6001"
         group.id = "akka-persistence-snapshot"
       }
     }
