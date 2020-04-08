@@ -1,6 +1,6 @@
 package com.github.j5ik2o.akka.persistence.kafka.snapshot
 
-import akka.actor.ActorSystem
+import akka.actor.{ ActorSystem, DynamicAccess, ExtendedActorSystem }
 import akka.kafka.scaladsl.{ Consumer, Producer }
 import akka.kafka.{ ConsumerSettings, ProducerSettings, Subscriptions }
 import akka.persistence.snapshot.SnapshotStore
@@ -10,10 +10,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalSequence, PersistenceId }
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
-import com.github.j5ik2o.akka.persistence.kafka.utils.ClassUtil
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{
@@ -23,6 +21,7 @@ import org.apache.kafka.common.serialization.{
   StringSerializer
 }
 
+import scala.collection.immutable
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
@@ -39,8 +38,6 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
   implicit val system: ActorSystem    = context.system
   implicit val mat: ActorMaterializer = ActorMaterializer()
 
-  private val bootstrapServers = config.as[List[String]]("bootstrap-servers").mkString(",")
-
   private val producerConfig = config.getConfig("producer")
   private val consumerConfig = config.getConfig("consumer")
 
@@ -48,11 +45,9 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
 
   protected val producerSettings: ProducerSettings[String, Array[Byte]] =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
-      .withBootstrapServers(bootstrapServers)
 
   protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
-      .withBootstrapServers(bootstrapServers)
 
   private def resolveTopic(persistenceId: PersistenceId): String =
     config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString
@@ -65,19 +60,29 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
 
   private val serialization = SerializationExtension(context.system)
 
-  protected val journalTopicResolver: KafkaTopicResolver =
-    ClassUtil.create(
-      classOf[KafkaTopicResolver],
-      config
-        .as[String]("topic-resolver-class-name")
-    )
+  private val dynamicAccess: DynamicAccess = system.asInstanceOf[ExtendedActorSystem].dynamicAccess
 
-  protected val journalPartitionResolver: KafkaPartitionResolver =
-    ClassUtil.create(
-      classOf[KafkaPartitionResolver],
-      config
-        .as[String]("partition-resolver-class-name")
-    )
+  protected val journalTopicResolver: KafkaTopicResolver = {
+    val className = config
+      .as[String]("topic-resolver-class-name")
+    dynamicAccess
+      .createInstanceFor[KafkaTopicResolver](
+        className,
+        immutable.Seq.empty
+      )
+      .getOrElse(throw new ClassNotFoundException(className))
+  }
+
+  protected val journalPartitionResolver: KafkaPartitionResolver = {
+    val className = config
+      .as[String]("partition-resolver-class-name")
+    dynamicAccess
+      .createInstanceFor[KafkaPartitionResolver](
+        className,
+        immutable.Seq.empty
+      )
+      .getOrElse(throw new ClassNotFoundException(className))
+  }
 
   override def postStop(): Unit = {
     journalSequence.close()
