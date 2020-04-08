@@ -21,6 +21,7 @@ import org.apache.kafka.common.serialization.{
   StringSerializer
 }
 
+import scala.collection.immutable
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
@@ -67,7 +68,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     dynamicAccess
       .createInstanceFor[KafkaTopicResolver](
         className,
-        Seq.empty
+        immutable.Seq.empty
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }
@@ -78,7 +79,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     dynamicAccess
       .createInstanceFor[KafkaPartitionResolver](
         className,
-        Seq.empty
+        immutable.Seq.empty
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }
