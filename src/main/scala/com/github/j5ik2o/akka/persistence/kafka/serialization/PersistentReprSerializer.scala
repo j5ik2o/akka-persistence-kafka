@@ -3,7 +3,7 @@ package com.github.j5ik2o.akka.persistence.kafka.serialization
 import akka.persistence.journal.Tagged
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.Serialization
-import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalRow, PersistenceId, SequenceNumber }
+import com.github.j5ik2o.akka.persistence.kafka.journal.JournalRow
 import com.github.j5ik2o.akka.persistence.kafka.utils.EitherSeq
 
 import scala.util.{ Failure, Success }

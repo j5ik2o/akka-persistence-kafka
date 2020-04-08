@@ -3,7 +3,7 @@ package com.github.j5ik2o.akka.persistence.kafka.serialization
 import akka.actor.ExtendedActorSystem
 import akka.persistence.PersistentRepr
 import akka.serialization.{ SerializationExtension, Serializer => AkkaSerializer }
-import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalRow, PersistenceId, SequenceNumber }
+import com.github.j5ik2o.akka.persistence.kafka.journal.JournalRow
 import com.github.j5ik2o.akka.persistence.kafka.protocol.JournalFormat
 import com.google.protobuf.ByteString
 import org.slf4j.LoggerFactory

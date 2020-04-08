@@ -1,6 +1,6 @@
 package com.github.j5ik2o.akka.persistence.kafka.journal
 
-import akka.actor.{ ActorLogging, ActorSystem }
+import akka.actor.{ ActorLogging, ActorSystem, DynamicAccess, ExtendedActorSystem }
 import akka.kafka._
 import akka.kafka.scaladsl.{ Consumer, Producer }
 import akka.persistence.journal.AsyncWriteJournal
@@ -11,10 +11,8 @@ import akka.stream.scaladsl.{ Keep, Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
-import com.github.j5ik2o.akka.persistence.kafka.utils.ClassUtil
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -36,6 +34,7 @@ object KafkaJournal {
 
 class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   import KafkaJournal._
+
   implicit val ec: ExecutionContext   = context.dispatcher
   implicit val system: ActorSystem    = context.system
   implicit val mat: ActorMaterializer = ActorMaterializer()
@@ -53,19 +52,29 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
 
-  protected val journalTopicResolver: KafkaTopicResolver =
-    ClassUtil.create(
-      classOf[KafkaTopicResolver],
-      config
-        .as[String]("topic-resolver-class-name")
-    )
+  private val dynamicAccess: DynamicAccess = system.asInstanceOf[ExtendedActorSystem].dynamicAccess
 
-  protected val journalPartitionResolver: KafkaPartitionResolver = ClassUtil
-    .create(
-      classOf[KafkaPartitionResolver],
-      config
-        .as[String]("partition-resolver-class-name")
-    )
+  protected val journalTopicResolver: KafkaTopicResolver = {
+    val className = config
+      .as[String]("topic-resolver-class-name")
+    dynamicAccess
+      .createInstanceFor[KafkaTopicResolver](
+        className,
+        Seq.empty
+      )
+      .getOrElse(throw new ClassNotFoundException(className))
+  }
+
+  protected val journalPartitionResolver: KafkaPartitionResolver = {
+    val className = config
+      .as[String]("partition-resolver-class-name")
+    dynamicAccess
+      .createInstanceFor[KafkaPartitionResolver](
+        className,
+        Seq.empty
+      )
+      .getOrElse(throw new ClassNotFoundException(className))
+  }
 
   private def resolveTopic(persistenceId: PersistenceId): String =
     config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString

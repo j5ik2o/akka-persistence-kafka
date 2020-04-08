@@ -1,6 +1,6 @@
 package com.github.j5ik2o.akka.persistence.kafka.snapshot
 
-import akka.actor.ActorSystem
+import akka.actor.{ ActorSystem, DynamicAccess, ExtendedActorSystem }
 import akka.kafka.scaladsl.{ Consumer, Producer }
 import akka.kafka.{ ConsumerSettings, ProducerSettings, Subscriptions }
 import akka.persistence.snapshot.SnapshotStore
@@ -10,10 +10,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.journal.{ JournalSequence, PersistenceId }
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
-import com.github.j5ik2o.akka.persistence.kafka.utils.ClassUtil
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{
@@ -61,19 +59,29 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
 
   private val serialization = SerializationExtension(context.system)
 
-  protected val journalTopicResolver: KafkaTopicResolver =
-    ClassUtil.create(
-      classOf[KafkaTopicResolver],
-      config
-        .as[String]("topic-resolver-class-name")
-    )
+  private val dynamicAccess: DynamicAccess = system.asInstanceOf[ExtendedActorSystem].dynamicAccess
 
-  protected val journalPartitionResolver: KafkaPartitionResolver =
-    ClassUtil.create(
-      classOf[KafkaPartitionResolver],
-      config
-        .as[String]("partition-resolver-class-name")
-    )
+  protected val journalTopicResolver: KafkaTopicResolver = {
+    val className = config
+      .as[String]("topic-resolver-class-name")
+    dynamicAccess
+      .createInstanceFor[KafkaTopicResolver](
+        className,
+        Seq.empty
+      )
+      .getOrElse(throw new ClassNotFoundException(className))
+  }
+
+  protected val journalPartitionResolver: KafkaPartitionResolver = {
+    val className = config
+      .as[String]("partition-resolver-class-name")
+    dynamicAccess
+      .createInstanceFor[KafkaPartitionResolver](
+        className,
+        Seq.empty
+      )
+      .getOrElse(throw new ClassNotFoundException(className))
+  }
 
   override def postStop(): Unit = {
     journalSequence.close()
