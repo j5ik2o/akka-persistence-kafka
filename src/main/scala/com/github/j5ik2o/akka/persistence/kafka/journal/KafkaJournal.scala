@@ -60,7 +60,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     dynamicAccess
       .createInstanceFor[KafkaTopicResolver](
         className,
-        immutable.Seq.empty
+        immutable.Seq(classOf[Config] -> config)
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }
@@ -71,7 +71,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     dynamicAccess
       .createInstanceFor[KafkaPartitionResolver](
         className,
-        immutable.Seq.empty
+        immutable.Seq(classOf[Config] -> config)
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }

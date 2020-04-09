@@ -1,6 +1,7 @@
 package com.github.j5ik2o.akka.persistence.kafka.resolver
 
 import com.github.j5ik2o.akka.persistence.kafka.journal.PersistenceId
+import com.typesafe.config.Config
 
 trait KafkaPartitionResolver {
 
@@ -10,12 +11,12 @@ trait KafkaPartitionResolver {
 
 object KafkaPartitionResolver {
 
-  class PartitionZero extends KafkaPartitionResolver {
+  class PartitionZero(config: Config) extends KafkaPartitionResolver {
     override def resolve(persistenceId: PersistenceId): KafkaPartition =
       KafkaPartition(0)
   }
 
-  class PartitionOne extends KafkaPartitionResolver {
+  class PartitionOne(config: Config) extends KafkaPartitionResolver {
     override def resolve(persistenceId: PersistenceId): KafkaPartition =
       KafkaPartition(1)
   }

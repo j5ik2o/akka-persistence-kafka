@@ -68,7 +68,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     dynamicAccess
       .createInstanceFor[KafkaTopicResolver](
         className,
-        immutable.Seq.empty
+        immutable.Seq(classOf[Config] -> config)
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }
@@ -79,7 +79,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     dynamicAccess
       .createInstanceFor[KafkaPartitionResolver](
         className,
-        immutable.Seq.empty
+        immutable.Seq(classOf[Config] -> config)
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }
