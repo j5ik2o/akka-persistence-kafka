@@ -30,5 +30,5 @@ jobs:
             sbt ++"2.13.1" test
           no_output_timeout: 1h
       - save_cache:
-          paths: [ "~/.sbt/boot", "~/.ivy2" ]
+          paths: [ "~/.sbt/boot", "~/.ivy2/cache", "~/.cache/coursier" ]
           key: scala-library-dependencies-{{ checksum "build.sbt" }}
