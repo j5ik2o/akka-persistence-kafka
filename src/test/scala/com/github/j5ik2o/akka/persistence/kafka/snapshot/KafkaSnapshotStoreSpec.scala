@@ -13,7 +13,7 @@ class KafkaSnapshotStoreSpec extends SnapshotStoreSpec(config = ConfigFactory.pa
   protected override def supportsSerialization: CapabilityFlag = CapabilityFlag.off()
 
   implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
-    customBrokerProperties = Map("num.partitions" -> "12")
+    customBrokerProperties = Map("num.partitions" -> "128")
   )
 
   protected override def beforeAll(): Unit = {

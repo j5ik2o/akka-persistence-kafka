@@ -27,15 +27,16 @@ class JournalSequence(
       persistenceId: PersistenceId,
       fromSequenceNr: Option[Long] = None
   ): Long = {
-    val tp =
-      new TopicPartition(
-        topicPrefix + journalTopicResolver.resolve(persistenceId).asString,
-        journalPartitionResolver.resolve(persistenceId).value
-      )
+    val topic         = topicPrefix + journalTopicResolver.resolve(persistenceId).asString
+    val partitionSize = consumer.partitionsFor(topic).asScala.size
+    val partitonId    = journalPartitionResolver.resolve(partitionSize, persistenceId).value
+
+    val tp = new TopicPartition(topic, partitonId)
     consumer.assign(List(tp).asJava)
     fromSequenceNr.foreach(consumer.seek(tp, _))
     val result =
       consumer.endOffsets(List(tp).asJava).get(tp)
     Math.max(result, 0)
   }
+
 }

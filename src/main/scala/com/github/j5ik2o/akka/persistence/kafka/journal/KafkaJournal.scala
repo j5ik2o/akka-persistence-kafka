@@ -48,6 +48,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   protected val producerSettings: ProducerSettings[String, Array[Byte]] =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
+  protected val producer = producerSettings.createKafkaProducer()
 
   protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
@@ -76,11 +77,17 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       .getOrElse(throw new ClassNotFoundException(className))
   }
 
-  private def resolveTopic(persistenceId: PersistenceId): String =
+  protected def resolveTopic(persistenceId: PersistenceId): String =
     config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString
 
-  private def resolvePartition(persistenceId: PersistenceId): Int =
-    journalPartitionResolver.resolve(persistenceId).value
+  protected def resolvePartitionSize(persistenceId: PersistenceId): Int = {
+    val topic = resolveTopic(persistenceId)
+    producer.partitionsFor(topic).asScala.size
+  }
+
+  protected def resolvePartition(persistenceId: PersistenceId): Int = {
+    journalPartitionResolver.resolve(resolvePartitionSize(persistenceId), persistenceId).value
+  }
 
   protected val journalSequence = new JournalSequence(
     consumerSettings,
@@ -94,6 +101,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   override def postStop(): Unit = {
     journalSequence.close()
+    producer.close()
     super.postStop()
   }
 

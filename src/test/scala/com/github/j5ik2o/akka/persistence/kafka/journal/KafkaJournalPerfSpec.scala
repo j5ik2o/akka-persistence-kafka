@@ -15,7 +15,7 @@ class KafkaJournalPerfSpec
     with BeforeAndAfterAll {
 
   implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
-    customBrokerProperties = Map("num.partitions" -> "12")
+    customBrokerProperties = Map("num.partitions" -> "128")
   )
 
   protected override def beforeAll(): Unit = {
