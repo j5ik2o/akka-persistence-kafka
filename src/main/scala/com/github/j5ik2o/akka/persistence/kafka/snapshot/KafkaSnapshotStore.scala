@@ -24,6 +24,7 @@ import org.apache.kafka.common.serialization.{
 import scala.collection.immutable
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
+import scala.jdk.CollectionConverters._
 
 object KafkaSnapshotStore {
 
@@ -45,15 +46,23 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
 
   protected val producerSettings: ProducerSettings[String, Array[Byte]] =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
+  protected val producer = producerSettings.createKafkaProducer()
 
   protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
 
-  private def resolveTopic(persistenceId: PersistenceId): String =
+  protected def resolveTopic(persistenceId: PersistenceId): String =
     config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString
 
-  private def resolvePartition(persistenceId: PersistenceId): Int =
-    journalPartitionResolver.resolve(persistenceId).value
+  protected def resolvePartitionSize(persistenceId: PersistenceId): Int = {
+    val topic = resolveTopic(persistenceId)
+    producer.partitionsFor(topic).asScala.size
+  }
+
+  protected def resolvePartition(persistenceId: PersistenceId): Int = {
+    val partitionSize = resolvePartitionSize(persistenceId)
+    journalPartitionResolver.resolve(partitionSize, persistenceId).value
+  }
 
   private var rangeDeletions: RangeDeletions   = Map.empty.withDefaultValue(SnapshotSelectionCriteria.None)
   private var singleDeletions: SingleDeletions = Map.empty.withDefaultValue(Nil)
@@ -86,6 +95,7 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
 
   override def postStop(): Unit = {
     journalSequence.close()
+    producer.close()
     super.postStop()
   }
 

@@ -23,7 +23,9 @@ class KafkaJournalSpec
   override protected def supportsSerialization: CapabilityFlag = CapabilityFlag.on()
 
   implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
-    customBrokerProperties = Map("num.partitions" -> "12")
+    customBrokerProperties = Map(
+      "num.partitions" -> "128"
+    )
   )
 
   protected override def beforeAll(): Unit = {
