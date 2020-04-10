@@ -16,7 +16,9 @@ class JournalSequence(
 ) {
   private val consumer: Consumer[String, Array[Byte]] = consumerSettings.createKafkaConsumer()
 
-  def close(): Unit = consumer.close()
+  def close(): Unit = synchronized {
+    consumer.close()
+  }
 
   def readHighestSequenceNrAsync(persistenceId: PersistenceId, fromSequenceNr: Option[Long] = None)(
       implicit ec: ExecutionContext
@@ -26,7 +28,7 @@ class JournalSequence(
   def readHighestSequenceNr(
       persistenceId: PersistenceId,
       fromSequenceNr: Option[Long] = None
-  ): Long = {
+  ): Long = synchronized {
     val topic         = topicPrefix + journalTopicResolver.resolve(persistenceId).asString
     val partitionSize = consumer.partitionsFor(topic).asScala.size
     val partitonId    = journalPartitionResolver.resolve(partitionSize, persistenceId).value
