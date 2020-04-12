@@ -20,10 +20,29 @@ class JournalSequence(
     consumer.close()
   }
 
+  def readLowestSequenceNrAsync(persistenceId: PersistenceId, fromSequenceNr: Option[Long] = None)(
+      implicit ec: ExecutionContext
+  ): Future[Long] =
+    Future { readLowestSequenceNr(persistenceId, fromSequenceNr) }
+
   def readHighestSequenceNrAsync(persistenceId: PersistenceId, fromSequenceNr: Option[Long] = None)(
       implicit ec: ExecutionContext
   ): Future[Long] =
     Future { readHighestSequenceNr(persistenceId, fromSequenceNr) }
+
+  def readLowestSequenceNr(persistenceId: PersistenceId, toSequenceNr: Option[Long] = None): Long = {
+    val topic         = topicPrefix + journalTopicResolver.resolve(persistenceId).asString
+    val partitionSize = consumer.partitionsFor(topic).asScala.size
+    val partitonId    = journalPartitionResolver.resolve(partitionSize, persistenceId).value
+
+    val tp = new TopicPartition(topic, partitonId)
+    consumer.assign(List(tp).asJava)
+    toSequenceNr.foreach(consumer.seek(tp, _))
+    val result =
+      consumer.beginningOffsets(List(tp).asJava).get(tp)
+    Math.max(result, 0)
+
+  }
 
   def readHighestSequenceNr(
       persistenceId: PersistenceId,
