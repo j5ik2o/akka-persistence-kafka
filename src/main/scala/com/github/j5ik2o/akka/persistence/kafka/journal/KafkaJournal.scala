@@ -169,7 +169,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   }
 
   override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] = {
-    for {
+    log.debug(s"asyncDeleteMessagesTo($persistenceId, $toSequenceNr): start")
+    val future = for {
       to <- if (toSequenceNr == Long.MaxValue)
         journalSequence.readHighestSequenceNrAsync(PersistenceId(persistenceId))
       else
@@ -189,6 +190,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
           .get()
       }
     } yield ()
+    future.onComplete {
+      case Success(value) =>
+        log.debug(s"asyncDeleteMessagesTo($persistenceId, $toSequenceNr): finished, succeeded($value)")
+      case Failure(ex) =>
+        log.error(ex, s"asyncDeleteMessagesTo($persistenceId, $toSequenceNr): finished, failed($ex)")
+    }
+    future
   }
 
   override def asyncReplayMessages(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long, max: Long)(
@@ -197,17 +205,16 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     log.debug(
       s"asyncReplayMessages($persistenceId, $fromSequenceNr, $toSequenceNr, $max): start"
     )
-    val pid       = PersistenceId(persistenceId)
-    val deletedTo = journalSequence.readLowestSequenceNr(pid)
-    log.debug(s"deletedTo = $deletedTo")
+    val pid = PersistenceId(persistenceId)
+    val future = journalSequence.readLowestSequenceNrAsync(pid).flatMap { deletedTo =>
+      log.debug(s"deletedTo = $deletedTo")
 
-    val adjustedFrom = Math.max(deletedTo + 1L, fromSequenceNr)
-    val adjustedNum  = toSequenceNr - adjustedFrom + 1L
-    val adjustedTo   = if (max < adjustedNum) adjustedFrom + max - 1L else toSequenceNr
+      val adjustedFrom = Math.max(deletedTo + 1L, fromSequenceNr)
+      val adjustedNum  = toSequenceNr - adjustedFrom + 1L
+      val adjustedTo   = if (max < adjustedNum) adjustedFrom + max - 1L else toSequenceNr
 
-    log.debug("adjustedFrom = {}, adjustedNum = {}, adjustedTo = {}", adjustedFrom, adjustedNum, adjustedTo)
+      log.debug("adjustedFrom = {}, adjustedNum = {}, adjustedTo = {}", adjustedFrom, adjustedNum, adjustedTo)
 
-    val future =
       if (max == 0 || adjustedFrom > adjustedTo || deletedTo == Long.MaxValue)
         Future.successful(())
       else
@@ -250,6 +257,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
             }
           })
           .map(_ => ())
+    }
     future.onComplete {
       case Success(value) =>
         log.debug(
