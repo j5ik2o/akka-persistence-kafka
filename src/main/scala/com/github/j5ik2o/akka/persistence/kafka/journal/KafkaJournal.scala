@@ -13,6 +13,7 @@ import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSeri
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
+import org.apache.kafka.clients.admin.{ AdminClient, RecordsToDelete }
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -52,6 +53,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
+
+  private val adminClient: AdminClient = AdminClient.create(producerSettings.getProperties)
 
   private val dynamicAccess: DynamicAccess = system.asInstanceOf[ExtendedActorSystem].dynamicAccess
 
@@ -96,12 +99,10 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     journalPartitionResolver
   )
 
-  // Transient deletions only to pass TCK (persistent not supported)
-  private var deletions: Deletions = Map.empty
-
   override def postStop(): Unit = {
     journalSequence.close()
     producer.close()
+    adminClient.close()
     super.postStop()
   }
 
@@ -167,10 +168,28 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     future
   }
 
-  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] =
-    Future.successful {
-      deletions += (PersistenceId(persistenceId) -> (toSequenceNr, false))
-    }
+  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] = {
+    for {
+      to <- if (toSequenceNr == Long.MaxValue)
+        journalSequence.readHighestSequenceNrAsync(PersistenceId(persistenceId))
+      else
+        Future.successful(toSequenceNr)
+      _ <- Future {
+        adminClient
+          .deleteRecords(
+            Map(
+              new TopicPartition(
+                resolveTopic(PersistenceId(persistenceId)),
+                resolvePartition(PersistenceId(persistenceId))
+              ) -> RecordsToDelete
+                .beforeOffset(to)
+            ).asJava
+          )
+          .all()
+          .get()
+      }
+    } yield ()
+  }
 
   override def asyncReplayMessages(persistenceId: String, fromSequenceNr: Long, toSequenceNr: Long, max: Long)(
       replayCallback: PersistentRepr => Unit
@@ -178,14 +197,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     log.debug(
       s"asyncReplayMessages($persistenceId, $fromSequenceNr, $toSequenceNr, $max): start"
     )
-    val pid                    = PersistenceId(persistenceId)
-    val (deletedTo, permanent) = deletions.getOrElse(pid, (0L, false))
-    log.debug("deletedTo = {}, permanent = {}", deletedTo, permanent)
+    val pid       = PersistenceId(persistenceId)
+    val deletedTo = journalSequence.readLowestSequenceNr(pid)
+    log.debug(s"deletedTo = $deletedTo")
 
-    val adjustedFrom =
-      if (!permanent) Math.max(deletedTo + 1L, fromSequenceNr) else fromSequenceNr
-    val adjustedNum = toSequenceNr - adjustedFrom + 1L
-    val adjustedTo  = if (max < adjustedNum) adjustedFrom + max - 1L else toSequenceNr
+    val adjustedFrom = Math.max(deletedTo + 1L, fromSequenceNr)
+    val adjustedNum  = toSequenceNr - adjustedFrom + 1L
+    val adjustedTo   = if (max < adjustedNum) adjustedFrom + max - 1L else toSequenceNr
 
     log.debug("adjustedFrom = {}, adjustedNum = {}, adjustedTo = {}", adjustedFrom, adjustedNum, adjustedTo)
 
@@ -219,7 +237,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               log.debug(
                 s"record.offset = ${record.offset()}, persistentRepr.sequenceNr = ${persistentRepr.sequenceNr}, deletedTo = $deletedTo"
               )
-              if (!permanent && persistentRepr.sequenceNr <= deletedTo) {
+              if (persistentRepr.sequenceNr <= deletedTo) {
                 log.debug("update: deleted = true")
                 persistentRepr.update(deleted = true)
               } else persistentRepr
