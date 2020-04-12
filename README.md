@@ -31,10 +31,6 @@ libraryDependencies += Seq(
 )
 ```
 
-## Constraints
-
-`KafkaJournal#asyncDeleteMessagesTo(PersistentActor#deleteMessages)` method is not supported. The method is implemented to pass the TCK. **Never use it in production.**
-
 ## Configration
 
 The minimum necessary settings are as follows.
