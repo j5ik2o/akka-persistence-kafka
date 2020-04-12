@@ -11,6 +11,8 @@
     </appender>
 
     <logger name="com.github.j5ik2o" level="INFO" />
+    <logger name="kafka" level="ERROR" />
+    <logger name="org.apache.kafka" level="ERROR" />
 
     <root level="INFO">
         <appender-ref ref="console"/>
