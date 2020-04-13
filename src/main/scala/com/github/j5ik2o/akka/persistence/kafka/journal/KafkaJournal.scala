@@ -9,7 +9,7 @@ import akka.serialization.{ Serialization, SerializationExtension }
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Keep, Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
-import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer
+import com.github.j5ik2o.akka.persistence.kafka.serialization.{ JournalAkkaSerializer, PersistentReprSerializer }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.PersistentReprSerializer.JournalWithByteArray
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
@@ -34,7 +34,6 @@ object KafkaJournal {
 }
 
 class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
-  import KafkaJournal._
 
   implicit val ec: ExecutionContext   = context.dispatcher
   implicit val system: ActorSystem    = context.system
@@ -108,57 +107,78 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
   override def asyncWriteMessages(atomicWrites: immutable.Seq[AtomicWrite]): Future[immutable.Seq[Try[Unit]]] = {
     log.debug(s"asyncWriteMessages($atomicWrites): start")
-    val serializedTries: Seq[Either[Throwable, Seq[JournalWithByteArray]]] = serializer.serialize(atomicWrites)
-    val rowsToWrite: Seq[JournalWithByteArray] = for {
-      serializeTry <- serializedTries
-      row          <- serializeTry.right.getOrElse(Seq.empty)
-    } yield row
-    def resultWhenWriteComplete: Vector[Try[Unit]] =
-      if (serializedTries.forall(_.isRight))
-        Vector.empty
-      else
-        serializedTries
-          .map(_.right.map(_ => ()))
-          .map {
-            case Right(value) => Success(value)
-            case Left(ex)     => Failure(ex)
+    val serializedTries: Seq[Future[Seq[(JournalRow, Array[Byte])]]] = serializer.serialize(atomicWrites)
+    val rowsToWriteFuture: Future[Seq[(JournalRow, Array[Byte])]] =
+      serializedTries.foldLeft(Future.successful(Seq.empty[JournalWithByteArray])) { (result, element) =>
+        for {
+          r <- result
+          e <- element.recover { case _ => Seq.empty }
+        } yield r ++ e
+      }
+    def resultWhenWriteComplete: Future[Vector[Try[Unit]]] = {
+      val result = serializedTries
+        .foldLeft(Future.successful(Seq.empty[Boolean])) { (result, element) =>
+          for {
+            r <- result
+            e <- element.map(_ => true).recover { case _ => false }
+          } yield r :+ e
+        }
+        .map(_.forall(identity))
+        .flatMap { result =>
+          if (result)
+            Future.successful(Vector.empty)
+          else {
+            val result = serializedTries
+              .foldLeft(Future.successful(Vector.empty[Try[Unit]])) { (result, element) =>
+                for {
+                  r <- result
+                  e <- element.map(_ => Success(())).recover { case ex => Failure(ex) }
+                } yield r :+ e
+              }
+            result
           }
-          .toVector
-    val messages =
-      if (rowsToWrite.size == 1) {
-        val journal   = rowsToWrite.head._1
-        val byteArray = rowsToWrite.head._2
-        ProducerMessage.single(
-          new ProducerRecord(
-            resolveTopic(journal.persistenceId),
-            resolvePartition(journal.persistenceId),
-            journal.persistenceId.asString,
-            byteArray
-          )
-        )
-      } else
-        ProducerMessage.multi(rowsToWrite.map {
-          case (journal, byteArray) =>
+        }
+      result
+    }
+    val future = rowsToWriteFuture.flatMap { rowsToWrite: Seq[JournalWithByteArray] =>
+      val messages =
+        if (rowsToWrite.size == 1) {
+          val journal   = rowsToWrite.head._1
+          val byteArray = rowsToWrite.head._2
+          ProducerMessage.single(
             new ProducerRecord(
               resolveTopic(journal.persistenceId),
               resolvePartition(journal.persistenceId),
               journal.persistenceId.asString,
               byteArray
             )
-        }.asJava) // asJava method, Must not modify for 2.12
-    val future: Future[immutable.Seq[Try[Unit]]] = Source
-      .single(messages)
-      .via(Producer.flexiFlow(producerSettings))
-      .mapConcat {
-        case ProducerMessage.Result(_, _) =>
-          resultWhenWriteComplete
-        case ProducerMessage.MultiResult(_, _) =>
-          resultWhenWriteComplete
-        case ProducerMessage.PassThroughResult(_) =>
-          Vector.empty
-      }
-      .toMat(Sink.seq)(Keep.right)
-      .run()
+          )
+        } else
+          ProducerMessage.multi(rowsToWrite.map {
+            case (journal, byteArray) =>
+              new ProducerRecord(
+                resolveTopic(journal.persistenceId),
+                resolvePartition(journal.persistenceId),
+                journal.persistenceId.asString,
+                byteArray
+              )
+          }.asJava) // asJava method, Must not modify for 2.12
+      val future: Future[immutable.Seq[Try[Unit]]] = Source
+        .single(messages)
+        .via(Producer.flexiFlow(producerSettings))
+        .mapAsync(1) {
+          case ProducerMessage.Result(_, _) =>
+            resultWhenWriteComplete
+          case ProducerMessage.MultiResult(_, _) =>
+            resultWhenWriteComplete
+          case ProducerMessage.PassThroughResult(_) =>
+            Future.successful(Vector.empty)
+        }
+        .mapConcat(identity)
+        .toMat(Sink.seq)(Keep.right)
+        .run()
+      future
+    }
     future.onComplete {
       case Success(value) =>
         log.debug(s"asyncWriteMessages($atomicWrites): finished, succeeded($value)")
@@ -217,7 +237,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
 
       if (max == 0 || adjustedFrom > adjustedTo || deletedTo == Long.MaxValue)
         Future.successful(())
-      else
+      else {
+        val className = classOf[JournalAkkaSerializer].getName
+        val serializer =
+          serialization
+            .serializerOf(className)
+            .map(_.asInstanceOf[JournalAkkaSerializer])
+            .getOrElse(throw new ClassNotFoundException(className))
         Consumer
           .plainSource(
             consumerSettings.withProperties(Map(ConsumerConfig.ISOLATION_LEVEL_CONFIG -> "read_committed")),
@@ -225,12 +251,10 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               new TopicPartition(resolveTopic(pid), resolvePartition(pid)) -> Math.max(adjustedFrom - 1, 0)
             )
           )
-          .flatMapConcat { record =>
-            serialization
-              .deserialize(record.value(), classOf[JournalRow]) match {
-              case Failure(ex)      => Source.failed(ex)
-              case Success(journal) => Source.single((record, journal))
-            }
+          .mapAsync(1) { record =>
+            serializer
+              .fromBinaryAsync(record.value(), classOf[JournalRow].getName)
+              .map(journal => (record, journal.asInstanceOf[JournalRow]))
           }
           .map {
             case (record, journal) =>
@@ -257,6 +281,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
             }
           })
           .map(_ => ())
+      }
     }
     future.onComplete {
       case Success(value) =>
