@@ -1,5 +1,8 @@
 package com.github.j5ik2o.akka.persistence.kafka.journal
 
+import java.nio.charset.StandardCharsets
+import java.util
+
 import akka.actor.{ ActorLogging, ActorSystem, DynamicAccess, ExtendedActorSystem }
 import akka.kafka._
 import akka.kafka.scaladsl.{ Consumer, Producer }
@@ -17,6 +20,8 @@ import org.apache.kafka.clients.admin.{ AdminClient, RecordsToDelete }
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.{ RecordHeader, RecordHeaders }
 import org.apache.kafka.common.serialization.{
   ByteArrayDeserializer,
   ByteArraySerializer,
@@ -31,9 +36,11 @@ import scala.util.{ Failure, Success, Try }
 
 object KafkaJournal {
   type Deletions = Map[PersistenceId, (Long, Boolean)]
+  final val PersistenceIdHeaderKey = "persistenceId"
 }
 
 class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
+  import KafkaJournal._
 
   implicit val ec: ExecutionContext   = context.dispatcher
   implicit val system: ActorSystem    = context.system
@@ -137,6 +144,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               }
             result
           }
+
         }
       result
     }
@@ -150,7 +158,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               resolveTopic(journal.persistenceId),
               resolvePartition(journal.persistenceId),
               journal.persistenceId.asString,
-              byteArray
+              byteArray,
+              createHeaders(journal)
             )
           )
         } else
@@ -160,7 +169,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
                 resolveTopic(journal.persistenceId),
                 resolvePartition(journal.persistenceId),
                 journal.persistenceId.asString,
-                byteArray
+                byteArray,
+                createHeaders(journal)
               )
           }.asJava) // asJava method, Must not modify for 2.12
       val future: Future[immutable.Seq[Try[Unit]]] = Source
@@ -186,6 +196,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
         log.error(ex, s"asyncWriteMessages($atomicWrites): finished, failed($ex)")
     }
     future
+  }
+
+  private def createHeaders(journal: JournalRow): util.List[Header] = {
+    val header: Header =
+      new RecordHeader(PersistenceIdHeaderKey, journal.persistenceId.asString.getBytes(StandardCharsets.UTF_8))
+    val headers: util.List[Header] = List(header).asJava
+    headers
   }
 
   override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] = {
@@ -251,6 +268,13 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               new TopicPartition(resolveTopic(pid), resolvePartition(pid)) -> Math.max(adjustedFrom - 1, 0)
             )
           )
+          .take(adjustedNum)
+          .filter { record =>
+            val recordedPid = new String(record.headers().lastHeader(PersistenceIdHeaderKey).value())
+            val result      = recordedPid == persistenceId
+            log.debug(s"[same = $result], recordedPid = $recordedPid, journalRow.pid = $persistenceId")
+            result
+          }
           .mapAsync(1) { record =>
             serializer
               .fromBinaryAsync(record.value(), classOf[JournalRow].getName)
@@ -258,6 +282,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
           }
           .map {
             case (record, journal) =>
+              log.debug(s"record = $record, journal = $journal")
               (
                 record,
                 journal.persistentRepr
@@ -273,7 +298,6 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
                 persistentRepr.update(deleted = true)
               } else persistentRepr
           }
-          .take(adjustedNum)
           .runWith(Sink.foreach { persistentRepr =>
             if (adjustedFrom <= persistentRepr.sequenceNr && persistentRepr.sequenceNr <= adjustedTo) {
               log.debug("callback = {}", persistentRepr)

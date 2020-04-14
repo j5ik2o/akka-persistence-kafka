@@ -31,20 +31,23 @@ object TestActor {
   }
 }
 
-class TestActor(id: UUID, snapShotInterval: Long) extends PersistentActor with ActorLogging {
-  override def persistenceId: String = id.toString
+class TestActor(modelName: String, id: UUID, snapShotInterval: Long) extends PersistentActor with ActorLogging {
+  override def persistenceId: String = modelName + "-" + id.toString
   private var state: State           = _
 
   override def receiveRecover: Receive = {
     case o @ SnapshotOffer(_, state: State) =>
+      require(state.id == id, s"Invalid id: ${state.id} != $id")
       log.info(
         s"SnapshotOffer: pid = ${o.metadata.persistenceId} seqNr = ${o.metadata.sequenceNr}, ts = ${o.metadata.timestamp} state = $state"
       )
       this.state = state
-    case e @ StateCreated(_id, name, amount) if _id == id =>
+    case e @ StateCreated(_id, name, amount) =>
+      require(_id == id, s"${_id} != $id")
       log.info(s"event = $e")
       state = State(_id, name, amount)
-    case e @ StateAmountUpdated(_id, amount) if _id == id =>
+    case e @ StateAmountUpdated(_id, amount) =>
+      require(_id == id, s"${_id} != $id")
       log.info(s"event = $e, state = $state")
       state = state.addAmount(amount)
 
