@@ -27,6 +27,7 @@ class PersistentActorReplaySpec
           .parseString(
             """
           |akka.test.single-expect-default = 60s
+          |j5ik2o.kafka-journal.topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.journal.TestKafkaTopicResolver"
           """.stripMargin
           )
           .withFallback(ConfigFactory.load())
@@ -39,7 +40,7 @@ class PersistentActorReplaySpec
 
   implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
     customBrokerProperties = Map(
-      "num.partitions" -> "128"
+      "num.partitions" -> "1"
     )
   )
 
@@ -72,10 +73,40 @@ class PersistentActorReplaySpec
   }
 
   "KafkaTestActor" - {
+    "should replay successfully, when using mulitiple persistenceIds in single kafka partition" in {
+      val snapShotInterval = 5
+      val id1              = UUID.randomUUID()
+      val id2              = UUID.randomUUID()
+      val modelName        = "test"
+      val name1            = "test-1"
+      val name2            = "test-2"
+      val actorRef1        = system.actorOf(Props(new TestActor(modelName, id1, snapShotInterval)), name1)
+      val actorRef2        = system.actorOf(Props(new TestActor(modelName, id2, snapShotInterval)), name2)
+
+      actorRef1 ! CreateState(id1, name1, 5, self)
+      expectMsg((5 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds, CreateStateReply(id1))
+      actorRef2 ! CreateState(id2, name2, 10, self)
+      expectMsg((5 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds, CreateStateReply(id2))
+
+      watch(actorRef1)
+      system.stop(actorRef1)
+      expectTerminated(actorRef1)
+
+      watch(actorRef2)
+      system.stop(actorRef2)
+      expectTerminated(actorRef2)
+
+      val rebootRef1 = system.actorOf(Props(new TestActor(modelName, id1, snapShotInterval)), name1)
+      getState(rebootRef1, id1).amount shouldBe 5
+      val rebootRef2 = system.actorOf(Props(new TestActor(modelName, id2, snapShotInterval)), name2)
+      getState(rebootRef2, id2).amount shouldBe 10
+    }
+
     "Will actors replay correctly after deleting journals older than the latest snapshot?" in {
       val snapShotInterval = 5
+      val modelName        = "test"
       val id               = UUID.randomUUID()
-      val actorRef         = system.actorOf(Props(new TestActor(id, snapShotInterval)), "test")
+      val actorRef         = system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), "test")
       val name             = "test-1"
       val minAmount        = 1
       val maxAmount        = 10
@@ -99,15 +130,16 @@ class PersistentActorReplaySpec
       system.stop(actorRef)
       expectTerminated(actorRef)
 
-      def getState(actorRef: ActorRef): State = {
-        actorRef ! GetState(id, self)
-        val reply = expectMsgType[GetStateReply]((5 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds)
-        reply.state
-      }
       // Restart the persistent actor with the same id
-      val rebootRef = system.actorOf(Props(new TestActor(id, snapShotInterval)), "test")
-      getState(rebootRef).amount shouldBe 55
+      val rebootRef = system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), "test")
+      getState(rebootRef, id).amount shouldBe 55
     }
+  }
+
+  def getState(actorRef: ActorRef, id: UUID): State = {
+    actorRef ! GetState(id, self)
+    val reply = expectMsgType[GetStateReply]((5 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds)
+    reply.state
   }
 
   override def beforeAll(): Unit = {
