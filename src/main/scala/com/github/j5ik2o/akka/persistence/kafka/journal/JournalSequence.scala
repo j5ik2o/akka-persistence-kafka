@@ -25,17 +25,21 @@ class JournalSequence(
     Future { readHighestSequenceNr(persistenceId, fromSequenceNr) }
 
   def readLowestSequenceNr(persistenceId: PersistenceId, toSequenceNr: Option[Long] = None): Long = {
-    val consumer      = consumerSettings.createKafkaConsumer()
-    val topic         = topicPrefix + journalTopicResolver.resolve(persistenceId).asString
-    val partitionSize = consumer.partitionsFor(topic).asScala.size
-    val partitonId    = journalPartitionResolver.resolve(partitionSize, persistenceId).value
+    val consumer = consumerSettings.createKafkaConsumer()
+    try {
+      val topic         = topicPrefix + journalTopicResolver.resolve(persistenceId).asString
+      val partitionSize = consumer.partitionsFor(topic).asScala.size
+      val partitonId    = journalPartitionResolver.resolve(partitionSize, persistenceId).value
 
-    val tp = new TopicPartition(topic, partitonId)
-    consumer.assign(List(tp).asJava)
-    toSequenceNr.foreach(consumer.seek(tp, _))
-    val result =
-      consumer.beginningOffsets(List(tp).asJava).get(tp)
-    Math.max(result, 0)
+      val tp = new TopicPartition(topic, partitonId)
+      consumer.assign(List(tp).asJava)
+      toSequenceNr.foreach(consumer.seek(tp, _))
+      val result =
+        consumer.beginningOffsets(List(tp).asJava).get(tp)
+      Math.max(result, 0)
+    } finally {
+      consumer.close()
+    }
 
   }
 
@@ -43,17 +47,21 @@ class JournalSequence(
       persistenceId: PersistenceId,
       fromSequenceNr: Option[Long] = None
   ): Long = {
-    val consumer      = consumerSettings.createKafkaConsumer()
-    val topic         = topicPrefix + journalTopicResolver.resolve(persistenceId).asString
-    val partitionSize = consumer.partitionsFor(topic).asScala.size
-    val partitonId    = journalPartitionResolver.resolve(partitionSize, persistenceId).value
+    val consumer = consumerSettings.createKafkaConsumer()
+    try {
+      val topic         = topicPrefix + journalTopicResolver.resolve(persistenceId).asString
+      val partitionSize = consumer.partitionsFor(topic).asScala.size
+      val partitonId    = journalPartitionResolver.resolve(partitionSize, persistenceId).value
 
-    val tp = new TopicPartition(topic, partitonId)
-    consumer.assign(List(tp).asJava)
-    fromSequenceNr.foreach(consumer.seek(tp, _))
-    val result =
-      consumer.endOffsets(List(tp).asJava).get(tp)
-    Math.max(result, 0)
+      val tp = new TopicPartition(topic, partitonId)
+      consumer.assign(List(tp).asJava)
+      fromSequenceNr.foreach(consumer.seek(tp, _))
+      val result =
+        consumer.endOffsets(List(tp).asJava).get(tp)
+      Math.max(result, 0)
+    } finally {
+      consumer.close()
+    }
   }
 
 }
