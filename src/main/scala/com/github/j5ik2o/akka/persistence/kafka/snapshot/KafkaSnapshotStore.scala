@@ -94,7 +94,6 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
   }
 
   override def postStop(): Unit = {
-    journalSequence.close()
     producer.close()
     super.postStop()
   }

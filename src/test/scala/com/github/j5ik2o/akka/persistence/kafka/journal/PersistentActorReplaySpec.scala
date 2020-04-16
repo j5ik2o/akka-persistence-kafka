@@ -17,6 +17,7 @@ import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class PersistentActorReplaySpec
@@ -38,6 +39,7 @@ class PersistentActorReplaySpec
     with BeforeAndAfterAll
     with Matchers {
 
+  import system.dispatcher
   implicit val kafkaConfig: EmbeddedKafkaConfig = EmbeddedKafkaConfig(
     customBrokerProperties = Map(
       "num.partitions" -> "1"
@@ -75,31 +77,36 @@ class PersistentActorReplaySpec
   "KafkaTestActor" - {
     "should replay successfully, when using mulitiple persistenceIds in single kafka partition" in {
       val snapShotInterval = 5
-      val id1              = UUID.randomUUID()
-      val id2              = UUID.randomUUID()
-      val modelName        = "test"
-      val name1            = "test-1"
-      val name2            = "test-2"
-      val actorRef1        = system.actorOf(Props(new TestActor(modelName, id1, snapShotInterval)), name1)
-      val actorRef2        = system.actorOf(Props(new TestActor(modelName, id2, snapShotInterval)), name2)
+      val maxActors        = 15
+      val idWithNames = for { idx <- 1 to maxActors } yield (
+        UUID.randomUUID(),
+        "test-" + UUID.randomUUID().toString,
+        idx
+      )
+      val modelName = "test"
+      val actorRefs = idWithNames.map {
+        case (id, name, idx) =>
+          (system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), name), id, name, idx)
+      }
 
-      actorRef1 ! CreateState(id1, name1, 5, self)
-      expectMsg((5 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds, CreateStateReply(id1))
-      actorRef2 ! CreateState(id2, name2, 10, self)
-      expectMsg((5 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds, CreateStateReply(id2))
+      actorRefs.foreach {
+        case (actorRef, id, name, idx) =>
+          actorRef ! CreateState(id, name, idx, self)
+          expectMsg((60 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds, CreateStateReply(id))
+      }
 
-      watch(actorRef1)
-      system.stop(actorRef1)
-      expectTerminated(actorRef1)
+      actorRefs.foreach {
+        case (actorRef, _, _, _) =>
+          watch(actorRef)
+          system.stop(actorRef)
+          expectTerminated(actorRef)
+      }
 
-      watch(actorRef2)
-      system.stop(actorRef2)
-      expectTerminated(actorRef2)
-
-      val rebootRef1 = system.actorOf(Props(new TestActor(modelName, id1, snapShotInterval)), name1)
-      getState(rebootRef1, id1).amount shouldBe 5
-      val rebootRef2 = system.actorOf(Props(new TestActor(modelName, id2, snapShotInterval)), name2)
-      getState(rebootRef2, id2).amount shouldBe 10
+      actorRefs.foreach {
+        case (_, id, name, idx) =>
+          val rebootRef1 = system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), name)
+          getState(rebootRef1, id).amount shouldBe idx
+      }
     }
 
     "Will actors replay correctly after deleting journals older than the latest snapshot?" in {
