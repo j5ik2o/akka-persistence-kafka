@@ -106,7 +106,6 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   )
 
   override def postStop(): Unit = {
-    journalSequence.close()
     producer.close()
     adminClient.close()
     super.postStop()
