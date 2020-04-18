@@ -1,3 +1,4 @@
+val reactiveAwsDynamoDB = "1.2.1"
 val scala212Version     = "2.12.10"
 val scala213Version     = "2.13.1"
 val akka25Version       = "2.5.30"
@@ -52,17 +53,62 @@ val coreSettings = Seq(
   },
   resolvers ++= Seq(
       "Sonatype OSS Snapshot Repository" at "https://oss.sonatype.org/content/repositories/snapshots/",
-      "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/"
+      "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/",
+      "Seasar Repository" at "https://maven.seasar.org/maven2/",
+      "DynamoDB Local Repository" at "https://s3-us-west-2.amazonaws.com/dynamodb-local/release"
     ),
-  libraryDependencies ++= Seq(
-      "org.scala-lang"          % "scala-reflect"      % scalaVersion.value,
-      "com.iheart"              %% "ficus"             % "1.4.7",
-      "org.slf4j"               % "slf4j-api"          % "1.7.30",
-      "com.typesafe.akka"       %% "akka-stream-kafka" % alpakkaKafkaVersion,
-      "com.thesamet.scalapb"    %% "scalapb-runtime"   % scalapb.compiler.Version.scalapbVersion % "protobuf",
-      "ch.qos.logback"          % "logback-classic"    % "1.2.3" % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka"    % kafkaVersion % Test
-    ) ++ {
+  parallelExecution in Test := false
+)
+
+lazy val `akka-persistence-kafka-dynamodb` = (project in file("kafka-dynamodb"))
+  .settings(coreSettings)
+  .settings(
+    name := "akka-persistence-kafka-dynamodb",
+    libraryDependencies ++= Seq(
+        "com.github.j5ik2o" %% "reactive-aws-dynamodb-monix" % reactiveAwsDynamoDB,
+        "com.github.j5ik2o" %% "reactive-aws-dynamodb-akka"  % reactiveAwsDynamoDB,
+        "com.github.j5ik2o" %% "akka-persistence-dynamodb"   % "1.0.22-SNAPSHOT",
+        "com.github.j5ik2o" %% "reactive-aws-dynamodb-test"  % reactiveAwsDynamoDB % Test,
+        "org.slf4j"         % "jul-to-slf4j"                 % "1.7.30" % Test
+      ),
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2L, scalaMajor)) if scalaMajor == 13 =>
+          Seq(
+            "com.typesafe.akka" %% "akka-testkit"         % akka26Version % Test,
+            "com.typesafe.akka" %% "akka-stream-testkit"  % akka26Version % Test,
+            "com.typesafe.akka" %% "akka-persistence-tck" % akka26Version % Test,
+            "org.scalatest"     %% "scalatest"            % "3.1.1"       % Test
+          )
+        case Some((2L, scalaMajor)) if scalaMajor == 12 =>
+          Seq(
+            "com.typesafe.akka" %% "akka-testkit"         % akka26Version % Test,
+            "com.typesafe.akka" %% "akka-stream-testkit"  % akka26Version % Test,
+            "com.typesafe.akka" %% "akka-persistence-tck" % akka26Version % Test,
+            "org.scalatest"     %% "scalatest"            % "3.1.1"       % Test
+          )
+      }
+    },
+    PB.targets in Compile := Seq(
+        scalapb.gen() -> (sourceManaged in Compile).value
+      )
+  )
+  .dependsOn(`akka-persistence-kafka`, `akka-persistence-kafka` % "test->test")
+
+lazy val `akka-persistence-kafka` = (project in file("kafka"))
+  .settings(coreSettings)
+  .settings(
+    name := "akka-persistence-kafka",
+    libraryDependencies ++= Seq(
+        "org.scala-lang"          % "scala-reflect"      % scalaVersion.value,
+        "com.iheart"              %% "ficus"             % "1.4.7",
+        "org.slf4j"               % "slf4j-api"          % "1.7.30",
+        "com.typesafe.akka"       %% "akka-stream-kafka" % alpakkaKafkaVersion,
+        "com.thesamet.scalapb"    %% "scalapb-runtime"   % scalapb.compiler.Version.scalapbVersion % "protobuf",
+        "ch.qos.logback"          % "logback-classic"    % "1.2.3" % Test,
+        "io.github.embeddedkafka" %% "embedded-kafka"    % kafkaVersion % Test
+      ),
+    libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2L, scalaMajor)) if scalaMajor == 13 =>
           Seq(
@@ -87,14 +133,14 @@ val coreSettings = Seq(
           )
       }
     },
-  PB.targets in Compile := Seq(
-      scalapb.gen() -> (sourceManaged in Compile).value
-    ),
-  parallelExecution in Test := false
-)
+    PB.targets in Compile := Seq(
+        scalapb.gen() -> (sourceManaged in Compile).value
+      )
+  )
 
-lazy val `root` = (project in file("."))
+lazy val `akka-persistence-kafka-root` = (project in file("."))
   .settings(coreSettings)
   .settings(
-    name := "akka-persistence-kafka"
+    name := "akka-persistence-kafka-root"
   )
+  .aggregate(`akka-persistence-kafka`, `akka-persistence-kafka-dynamodb`)
