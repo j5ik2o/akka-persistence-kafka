@@ -11,7 +11,7 @@ libraryDependencies ++= {
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.3.4")
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.31")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.33")
 
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
 
