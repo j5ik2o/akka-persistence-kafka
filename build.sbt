@@ -1,7 +1,7 @@
 val scala212Version     = "2.12.10"
 val scala213Version     = "2.13.1"
 val akka25Version       = "2.5.30"
-val akka26Version       = "2.6.4"
+val akka26Version       = "2.6.8"
 val kafkaVersion        = "2.4.1.1"
 val alpakkaKafkaVersion = "2.0.2"
 
