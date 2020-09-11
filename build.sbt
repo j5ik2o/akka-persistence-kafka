@@ -76,7 +76,7 @@ val coreSettings = Seq(
           )
         case Some((2L, scalaMajor)) if scalaMajor == 12 =>
           Seq(
-            "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6",
+            "org.scala-lang.modules" %% "scala-collection-compat" % "2.2.0",
             "com.typesafe.akka"      %% "akka-slf4j"              % akka26Version,
             "com.typesafe.akka"      %% "akka-stream"             % akka26Version,
             "com.typesafe.akka"      %% "akka-persistence"        % akka26Version,
