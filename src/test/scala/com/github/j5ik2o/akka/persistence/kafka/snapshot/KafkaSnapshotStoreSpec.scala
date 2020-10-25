@@ -6,9 +6,15 @@ import com.typesafe.config.ConfigFactory
 import net.manub.embeddedkafka.{ EmbeddedKafka, EmbeddedKafkaConfig }
 import org.scalatest.BeforeAndAfterAll
 
-class KafkaSnapshotStoreSpec extends SnapshotStoreSpec(config = ConfigFactory.parseString(s"""
+class KafkaSnapshotStoreSpec
+    extends SnapshotStoreSpec(
+      config = ConfigFactory
+        .parseString(s"""
       |akka.test.single-expect-default = 60s
-    """.stripMargin).withFallback(ConfigFactory.load())) with BeforeAndAfterAll {
+    """.stripMargin)
+        .withFallback(ConfigFactory.load())
+    )
+    with BeforeAndAfterAll {
 
   protected override def supportsSerialization: CapabilityFlag = CapabilityFlag.off()
 
