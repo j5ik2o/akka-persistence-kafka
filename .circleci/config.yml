@@ -29,3 +29,8 @@ jobs:
       - save_cache:
           paths: [ "~/.sbt/boot", "~/.ivy2/cache", "~/.cache/coursier" ]
           key: scala-library-dependencies-{{ checksum "build.sbt" }}
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
