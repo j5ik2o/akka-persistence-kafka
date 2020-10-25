@@ -5,7 +5,7 @@ resolvers ++= Seq(
 
 libraryDependencies ++= {
   Seq(
-    "com.thesamet.scalapb" %% "compilerplugin" % "0.10.2"
+    "com.thesamet.scalapb" %% "compilerplugin" % "0.10.8"
   )
 }
 
