@@ -39,8 +39,8 @@ class PersistentReprSerializer(serialization: Serialization) {
     serializer.toBinaryAsync(journal).map((journal, _))
   }
 
-  def serialize(persistentRepr: PersistentRepr, index: Option[Int])(
-      implicit ec: ExecutionContext
+  def serialize(persistentRepr: PersistentRepr, index: Option[Int])(implicit
+      ec: ExecutionContext
   ): Future[JournalWithByteArray] = {
     persistentRepr.payload match {
       case Tagged(payload, tags) =>
@@ -54,8 +54,8 @@ class PersistentReprSerializer(serialization: Serialization) {
       atomicWrites: Seq[AtomicWrite]
   )(implicit ec: ExecutionContext): Seq[Future[Seq[JournalWithByteArray]]] = {
     atomicWrites.map { atomicWrite =>
-      val serialized = atomicWrite.payload.zipWithIndex.map {
-        case (v, index) => serialize(v, Some(index))
+      val serialized = atomicWrite.payload.zipWithIndex.map { case (v, index) =>
+        serialize(v, Some(index))
       }
       Future.sequence(serialized)
     }
