@@ -162,15 +162,14 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
             )
           )
         } else
-          ProducerMessage.multi(rowsToWrite.map {
-            case (journal, byteArray) =>
-              new ProducerRecord(
-                resolveTopic(journal.persistenceId),
-                resolvePartition(journal.persistenceId),
-                journal.persistenceId.asString,
-                byteArray,
-                createHeaders(journal)
-              )
+          ProducerMessage.multi(rowsToWrite.map { case (journal, byteArray) =>
+            new ProducerRecord(
+              resolveTopic(journal.persistenceId),
+              resolvePartition(journal.persistenceId),
+              journal.persistenceId.asString,
+              byteArray,
+              createHeaders(journal)
+            )
           }.asJava) // asJava method, Must not modify for 2.12
       val future: Future[immutable.Seq[Try[Unit]]] = Source
         .single(messages)
@@ -207,10 +206,11 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] = {
     log.debug(s"asyncDeleteMessagesTo($persistenceId, $toSequenceNr): start")
     val future = for {
-      to <- if (toSequenceNr == Long.MaxValue)
-        journalSequence.readHighestSequenceNrAsync(PersistenceId(persistenceId))
-      else
-        Future.successful(toSequenceNr)
+      to <-
+        if (toSequenceNr == Long.MaxValue)
+          journalSequence.readHighestSequenceNrAsync(PersistenceId(persistenceId))
+        else
+          Future.successful(toSequenceNr)
       _ <- Future {
         adminClient
           .deleteRecords(
@@ -279,23 +279,21 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
               .fromBinaryAsync(record.value(), classOf[JournalRow].getName)
               .map(journal => (record, journal.asInstanceOf[JournalRow]))
           }
-          .map {
-            case (record, journal) =>
-              log.debug(s"record = $record, journal = $journal")
-              (
-                record,
-                journal.persistentRepr
-              )
+          .map { case (record, journal) =>
+            log.debug(s"record = $record, journal = $journal")
+            (
+              record,
+              journal.persistentRepr
+            )
           }
-          .map {
-            case (record, persistentRepr) =>
-              log.debug(
-                s"record.offset = ${record.offset()}, persistentRepr.sequenceNr = ${persistentRepr.sequenceNr}, deletedTo = $deletedTo"
-              )
-              if (persistentRepr.sequenceNr <= deletedTo) {
-                log.debug("update: deleted = true")
-                persistentRepr.update(deleted = true)
-              } else persistentRepr
+          .map { case (record, persistentRepr) =>
+            log.debug(
+              s"record.offset = ${record.offset()}, persistentRepr.sequenceNr = ${persistentRepr.sequenceNr}, deletedTo = $deletedTo"
+            )
+            if (persistentRepr.sequenceNr <= deletedTo) {
+              log.debug("update: deleted = true")
+              persistentRepr.update(deleted = true)
+            } else persistentRepr
           }
           .runWith(Sink.foreach { persistentRepr =>
             if (adjustedFrom <= persistentRepr.sequenceNr && persistentRepr.sequenceNr <= adjustedTo) {

@@ -8,9 +8,11 @@ import org.scalatest.BeforeAndAfterAll
 
 class KafkaJournalPerfSpec
     extends JournalPerfSpec(
-      ConfigFactory.parseString("""
+      ConfigFactory
+        .parseString("""
                               |akka.test.single-expect-default = 60s
-      """.stripMargin).withFallback(ConfigFactory.load())
+      """.stripMargin)
+        .withFallback(ConfigFactory.load())
     )
     with BeforeAndAfterAll {
 
