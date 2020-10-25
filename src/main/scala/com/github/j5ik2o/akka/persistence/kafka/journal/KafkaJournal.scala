@@ -9,7 +9,6 @@ import akka.kafka.scaladsl.{ Consumer, Producer }
 import akka.persistence.journal.AsyncWriteJournal
 import akka.persistence.{ AtomicWrite, PersistentRepr }
 import akka.serialization.{ Serialization, SerializationExtension }
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Keep, Sink, Source }
 import com.github.j5ik2o.akka.persistence.kafka.resolver.{ KafkaPartitionResolver, KafkaTopicResolver }
 import com.github.j5ik2o.akka.persistence.kafka.serialization.{ JournalAkkaSerializer, PersistentReprSerializer }
@@ -21,7 +20,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.Header
-import org.apache.kafka.common.header.internals.{ RecordHeader, RecordHeaders }
+import org.apache.kafka.common.header.internals.RecordHeader
 import org.apache.kafka.common.serialization.{
   ByteArrayDeserializer,
   ByteArraySerializer,
@@ -42,29 +41,26 @@ object KafkaJournal {
 class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
   import KafkaJournal._
 
-  implicit val ec: ExecutionContext   = context.dispatcher
-  implicit val system: ActorSystem    = context.system
-  implicit val mat: ActorMaterializer = ActorMaterializer()
+  implicit val ec: ExecutionContext = context.dispatcher
+  implicit val system: ActorSystem = context.system
+
+  private val serialization: Serialization = SerializationExtension(system)
+  private val serializer = new PersistentReprSerializer(serialization)
 
   private val producerConfig = config.getConfig("producer")
   private val consumerConfig = config.getConfig("consumer")
 
-  protected val serialization: Serialization = SerializationExtension(system)
-
-  protected val serializer = new PersistentReprSerializer(serialization)
-
-  protected val producerSettings: ProducerSettings[String, Array[Byte]] =
+  private val producerSettings: ProducerSettings[String, Array[Byte]] =
     ProducerSettings(producerConfig, new StringSerializer, new ByteArraySerializer)
-  protected val producer = producerSettings.createKafkaProducer()
+  private val producer = producerSettings.createKafkaProducer()
 
-  protected val consumerSettings: ConsumerSettings[String, Array[Byte]] =
+  private val consumerSettings: ConsumerSettings[String, Array[Byte]] =
     ConsumerSettings(consumerConfig, new StringDeserializer, new ByteArrayDeserializer)
 
   private val adminClient: AdminClient = AdminClient.create(producerSettings.getProperties)
-
   private val dynamicAccess: DynamicAccess = system.asInstanceOf[ExtendedActorSystem].dynamicAccess
 
-  protected val journalTopicResolver: KafkaTopicResolver = {
+  private val journalTopicResolver: KafkaTopicResolver = {
     val className = config
       .as[String]("topic-resolver-class-name")
     dynamicAccess
@@ -74,8 +70,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }
-
-  protected val journalPartitionResolver: KafkaPartitionResolver = {
+  private val journalPartitionResolver: KafkaPartitionResolver = {
     val className = config
       .as[String]("partition-resolver-class-name")
     dynamicAccess
@@ -85,20 +80,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       )
       .getOrElse(throw new ClassNotFoundException(className))
   }
-
-  protected def resolveTopic(persistenceId: PersistenceId): String =
-    config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString
-
-  protected def resolvePartitionSize(persistenceId: PersistenceId): Int = {
-    val topic = resolveTopic(persistenceId)
-    producer.partitionsFor(topic).asScala.size
-  }
-
-  protected def resolvePartition(persistenceId: PersistenceId): Int = {
-    journalPartitionResolver.resolve(resolvePartitionSize(persistenceId), persistenceId).value
-  }
-
-  protected val journalSequence = new JournalSequence(
+  private val journalSequence = new JournalSequence(
     consumerSettings,
     config.as[String]("topic-prefix"),
     journalTopicResolver,
@@ -150,7 +132,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     val future = rowsToWriteFuture.flatMap { rowsToWrite: Seq[JournalWithByteArray] =>
       val messages =
         if (rowsToWrite.size == 1) {
-          val journal   = rowsToWrite.head._1
+          val journal = rowsToWrite.head._1
           val byteArray = rowsToWrite.head._2
           ProducerMessage.single(
             new ProducerRecord(
@@ -246,8 +228,8 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
       log.debug(s"deletedTo = $deletedTo")
 
       val adjustedFrom = Math.max(deletedTo + 1L, fromSequenceNr)
-      val adjustedNum  = toSequenceNr - adjustedFrom + 1L
-      val adjustedTo   = if (max < adjustedNum) adjustedFrom + max - 1L else toSequenceNr
+      val adjustedNum = toSequenceNr - adjustedFrom + 1L
+      val adjustedTo = if (max < adjustedNum) adjustedFrom + max - 1L else toSequenceNr
 
       log.debug("adjustedFrom = {}, adjustedNum = {}, adjustedTo = {}", adjustedFrom, adjustedNum, adjustedTo)
 
@@ -270,7 +252,7 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
           .take(adjustedNum)
           .filter { record =>
             val recordedPid = new String(record.headers().lastHeader(PersistenceIdHeaderKey).value())
-            val result      = recordedPid == persistenceId
+            val result = recordedPid == persistenceId
             log.debug(s"[same = $result], recordedPid = $recordedPid, journalRow.pid = $persistenceId")
             result
           }
@@ -317,6 +299,18 @@ class KafkaJournal(config: Config) extends AsyncWriteJournal with ActorLogging {
     }
     future
   }
+
+  protected def resolvePartition(persistenceId: PersistenceId): Int = {
+    journalPartitionResolver.resolve(resolvePartitionSize(persistenceId), persistenceId).value
+  }
+
+  protected def resolvePartitionSize(persistenceId: PersistenceId): Int = {
+    val topic = resolveTopic(persistenceId)
+    producer.partitionsFor(topic).asScala.size
+  }
+
+  protected def resolveTopic(persistenceId: PersistenceId): String =
+    config.as[String]("topic-prefix") + journalTopicResolver.resolve(persistenceId).asString
 
   override def asyncReadHighestSequenceNr(persistenceId: String, fromSequenceNr: Long): Future[Long] = {
     log.debug("asyncReadHighestSequenceNr({},{}): start", persistenceId, fromSequenceNr)
