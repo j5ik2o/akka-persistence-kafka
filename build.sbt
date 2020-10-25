@@ -76,7 +76,7 @@ val coreSettings = Seq(
           "com.typesafe.akka" %% "akka-testkit"         % akka26Version % Test,
           "com.typesafe.akka" %% "akka-stream-testkit"  % akka26Version % Test,
           "com.typesafe.akka" %% "akka-persistence-tck" % akka26Version % Test,
-          "org.scalatest"     %% "scalatest"            % "3.1.1"       % Test
+          "org.scalatest"          %% "scalatest"               % "3.1.4" % Test
         )
       case Some((2L, scalaMajor)) if scalaMajor == 12 =>
         Seq(
@@ -87,7 +87,7 @@ val coreSettings = Seq(
           "com.typesafe.akka"      %% "akka-testkit"            % akka26Version % Test,
           "com.typesafe.akka"      %% "akka-stream-testkit"     % akka26Version % Test,
           "com.typesafe.akka"      %% "akka-persistence-tck"    % akka26Version % Test,
-          "org.scalatest"          %% "scalatest"               % "3.1.1"       % Test
+          "org.scalatest"          %% "scalatest"               % "3.1.4" % Test
         )
     }
   },
