@@ -60,7 +60,7 @@ val coreSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "org.scala-lang"           % "scala-reflect"     % scalaVersion.value,
-    "com.iheart"              %% "ficus"             % "1.4.7",
+    "com.iheart"              %% "ficus"             % "1.5.0",
     "org.slf4j"                % "slf4j-api"         % "1.7.30",
     "com.typesafe.akka"       %% "akka-stream-kafka" % alpakkaKafkaVersion,
     "com.thesamet.scalapb"    %% "scalapb-runtime"   % scalapb.compiler.Version.scalapbVersion % "protobuf",
