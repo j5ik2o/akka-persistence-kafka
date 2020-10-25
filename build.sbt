@@ -6,8 +6,8 @@ val kafkaVersion        = "2.4.1.1"
 val alpakkaKafkaVersion = "2.0.2"
 
 val coreSettings = Seq(
-  sonatypeProfileName := "com.github.j5ik2o",
-  organization := "com.github.j5ik2o",
+  sonatypeProfileName := "pl.newicom",
+  organization := "pl.newicom",
   scalaVersion := scala213Version,
   crossScalaVersions ++= Seq(scala212Version, scala213Version),
   scalacOptions ++= {
@@ -41,6 +41,10 @@ val coreSettings = Seq(
       <developer>
         <id>j5ik2o</id>
         <name>Junichi Kato</name>
+      </developer>
+      <developer>
+        <id>pawelkaczor</id>
+        <name>Pawel Kaczor</name>
       </developer>
     </developers>
   },
