@@ -51,45 +51,45 @@ val coreSettings = Seq(
     Credentials(ivyCredentials) :: Credentials(gpgCredentials) :: Nil
   },
   resolvers ++= Seq(
-      "Sonatype OSS Snapshot Repository" at "https://oss.sonatype.org/content/repositories/snapshots/",
-      "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/"
-    ),
+    "Sonatype OSS Snapshot Repository" at "https://oss.sonatype.org/content/repositories/snapshots/",
+    "Sonatype OSS Release Repository" at "https://oss.sonatype.org/content/repositories/releases/"
+  ),
   libraryDependencies ++= Seq(
-      "org.scala-lang"          % "scala-reflect"      % scalaVersion.value,
-      "com.iheart"              %% "ficus"             % "1.4.7",
-      "org.slf4j"               % "slf4j-api"          % "1.7.30",
-      "com.typesafe.akka"       %% "akka-stream-kafka" % alpakkaKafkaVersion,
-      "com.thesamet.scalapb"    %% "scalapb-runtime"   % scalapb.compiler.Version.scalapbVersion % "protobuf",
-      "ch.qos.logback"          % "logback-classic"    % "1.2.3" % Test,
-      "io.github.embeddedkafka" %% "embedded-kafka"    % kafkaVersion % Test
-    ) ++ {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2L, scalaMajor)) if scalaMajor == 13 =>
-          Seq(
-            "com.typesafe.akka" %% "akka-slf4j"           % akka26Version,
-            "com.typesafe.akka" %% "akka-stream"          % akka26Version,
-            "com.typesafe.akka" %% "akka-persistence"     % akka26Version,
-            "com.typesafe.akka" %% "akka-testkit"         % akka26Version % Test,
-            "com.typesafe.akka" %% "akka-stream-testkit"  % akka26Version % Test,
-            "com.typesafe.akka" %% "akka-persistence-tck" % akka26Version % Test,
-            "org.scalatest"     %% "scalatest"            % "3.1.1" % Test
-          )
-        case Some((2L, scalaMajor)) if scalaMajor == 12 =>
-          Seq(
-            "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6",
-            "com.typesafe.akka"      %% "akka-slf4j"              % akka26Version,
-            "com.typesafe.akka"      %% "akka-stream"             % akka26Version,
-            "com.typesafe.akka"      %% "akka-persistence"        % akka26Version,
-            "com.typesafe.akka"      %% "akka-testkit"            % akka26Version % Test,
-            "com.typesafe.akka"      %% "akka-stream-testkit"     % akka26Version % Test,
-            "com.typesafe.akka"      %% "akka-persistence-tck"    % akka26Version % Test,
-            "org.scalatest"          %% "scalatest"               % "3.1.1" % Test
-          )
-      }
-    },
+    "org.scala-lang"           % "scala-reflect"     % scalaVersion.value,
+    "com.iheart"              %% "ficus"             % "1.4.7",
+    "org.slf4j"                % "slf4j-api"         % "1.7.30",
+    "com.typesafe.akka"       %% "akka-stream-kafka" % alpakkaKafkaVersion,
+    "com.thesamet.scalapb"    %% "scalapb-runtime"   % scalapb.compiler.Version.scalapbVersion % "protobuf",
+    "ch.qos.logback"           % "logback-classic"   % "1.2.3"                                 % Test,
+    "io.github.embeddedkafka" %% "embedded-kafka"    % kafkaVersion                            % Test
+  ) ++ {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2L, scalaMajor)) if scalaMajor == 13 =>
+        Seq(
+          "com.typesafe.akka" %% "akka-slf4j"           % akka26Version,
+          "com.typesafe.akka" %% "akka-stream"          % akka26Version,
+          "com.typesafe.akka" %% "akka-persistence"     % akka26Version,
+          "com.typesafe.akka" %% "akka-testkit"         % akka26Version % Test,
+          "com.typesafe.akka" %% "akka-stream-testkit"  % akka26Version % Test,
+          "com.typesafe.akka" %% "akka-persistence-tck" % akka26Version % Test,
+          "org.scalatest"     %% "scalatest"            % "3.1.1"       % Test
+        )
+      case Some((2L, scalaMajor)) if scalaMajor == 12 =>
+        Seq(
+          "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6",
+          "com.typesafe.akka"      %% "akka-slf4j"              % akka26Version,
+          "com.typesafe.akka"      %% "akka-stream"             % akka26Version,
+          "com.typesafe.akka"      %% "akka-persistence"        % akka26Version,
+          "com.typesafe.akka"      %% "akka-testkit"            % akka26Version % Test,
+          "com.typesafe.akka"      %% "akka-stream-testkit"     % akka26Version % Test,
+          "com.typesafe.akka"      %% "akka-persistence-tck"    % akka26Version % Test,
+          "org.scalatest"          %% "scalatest"               % "3.1.1"       % Test
+        )
+    }
+  },
   PB.targets in Compile := Seq(
-      scalapb.gen() -> (sourceManaged in Compile).value
-    ),
+    scalapb.gen() -> (sourceManaged in Compile).value
+  ),
   parallelExecution in Test := false
 )
 
