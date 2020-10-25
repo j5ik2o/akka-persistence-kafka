@@ -3,7 +3,7 @@ val scala213Version     = "2.13.1"
 val akka25Version       = "2.5.30"
 val akka26Version       = "2.6.4"
 val kafkaVersion        = "2.4.1.1"
-val alpakkaKafkaVersion = "2.0.2"
+val alpakkaKafkaVersion = "2.0.5"
 
 val coreSettings = Seq(
   sonatypeProfileName := "com.github.j5ik2o",
