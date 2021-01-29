@@ -1,15 +1,15 @@
 val scala212Version     = "2.12.10"
 val scala213Version     = "2.13.1"
 val akka25Version       = "2.5.30"
-val akka26Version       = "2.6.10"
+val akka26Version       = "2.6.11"
 val kafkaVersion        = "2.7.0"
-val alpakkaKafkaVersion = "2.0.5"
+val alpakkaKafkaVersion = "2.0.6"
 
 val coreSettings = Seq(
   sonatypeProfileName := "pl.newicom",
   organization := "pl.newicom",
   scalaVersion := scala213Version,
-  crossScalaVersions ++= Seq(scala212Version, scala213Version),
+  crossScalaVersions ++= Seq(scala213Version),
   scalacOptions ++= {
     Seq(
       "-feature",
@@ -76,17 +76,6 @@ val coreSettings = Seq(
           "com.typesafe.akka" %% "akka-testkit"         % akka26Version % Test,
           "com.typesafe.akka" %% "akka-stream-testkit"  % akka26Version % Test,
           "com.typesafe.akka" %% "akka-persistence-tck" % akka26Version % Test,
-          "org.scalatest"          %% "scalatest"               % "3.1.4" % Test
-        )
-      case Some((2L, scalaMajor)) if scalaMajor == 12 =>
-        Seq(
-            "org.scala-lang.modules" %% "scala-collection-compat" % "2.2.0",
-          "com.typesafe.akka"      %% "akka-slf4j"              % akka26Version,
-          "com.typesafe.akka"      %% "akka-stream"             % akka26Version,
-          "com.typesafe.akka"      %% "akka-persistence"        % akka26Version,
-          "com.typesafe.akka"      %% "akka-testkit"            % akka26Version % Test,
-          "com.typesafe.akka"      %% "akka-stream-testkit"     % akka26Version % Test,
-          "com.typesafe.akka"      %% "akka-persistence-tck"    % akka26Version % Test,
           "org.scalatest"          %% "scalatest"               % "3.1.4" % Test
         )
     }
