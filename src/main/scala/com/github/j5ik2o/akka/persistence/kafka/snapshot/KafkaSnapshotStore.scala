@@ -135,14 +135,18 @@ class KafkaSnapshotStore(config: Config) extends SnapshotStore {
     val rangeDeletions  = this.rangeDeletions
 
     for {
-      highest <- if (ignoreOrphan)
-        journalSequence.readHighestSequenceNrAsync(PersistenceId(persistenceId))
-      else
-        Future.successful(Long.MaxValue)
-      adjusted = if (ignoreOrphan &&
-                     highest < criteria.maxSequenceNr &&
-                     highest > 0L) criteria.copy(maxSequenceNr = highest)
-      else criteria
+      highest <-
+        if (ignoreOrphan)
+          journalSequence.readHighestSequenceNrAsync(PersistenceId(persistenceId))
+        else
+          Future.successful(Long.MaxValue)
+      adjusted =
+        if (
+          ignoreOrphan &&
+          highest < criteria.maxSequenceNr &&
+          highest > 0L
+        ) criteria.copy(maxSequenceNr = highest)
+        else criteria
       // highest  <- Future.successful(Long.MaxValue)
       // adjusted = criteria
       snapshot <- {

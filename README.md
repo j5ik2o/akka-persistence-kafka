@@ -1,8 +1,8 @@
 # akka-persistence-kafka
 
-[![CircleCI](https://circleci.com/gh/j5ik2o/akka-persistence-kafka/tree/master.svg?style=shield&circle-token=c809688daf71f6ae582dd2d58cb5518401498373)](https://circleci.com/gh/j5ik2o/akka-persistence-kafka/tree/master)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.j5ik2o/akka-persistence-kafka_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.j5ik2o/akka-persistence-kafka_2.12)
-[![Scaladoc](http://javadoc-badge.appspot.com/com.github.j5ik2o/akka-persistence-kafka_2.12.svg?label=scaladoc)](http://javadoc-badge.appspot.com/com.github.j5ik2o/akka-persistence-kafka_2.12/com/github/j5ik2o/akka/persistence/kafka/index.html?javadocio=true)
+[![CircleCI](https://circleci.com/gh/pawelkaczor/akka-persistence-kafka/tree/master.svg?style=shield&circle-token=c809688daf71f6ae582dd2d58cb5518401498373)](https://circleci.com/gh/pawelkaczor/akka-persistence-kafka/tree/master)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/pl.newicom/akka-persistence-kafka_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/pl.newicom/akka-persistence-kafka_2.12)
+[![Scaladoc](http://javadoc-badge.appspot.com/pl.newicom/akka-persistence-kafka_2.12.svg?label=scaladoc)](http://javadoc-badge.appspot.com/pl.newicom/akka-persistence-kafka_2.12/pl/newicom/akka/persistence/kafka/index.html?javadocio=true)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 akka-persistence-kafka writes journal and snapshot entries to Kafka.
@@ -27,7 +27,7 @@ resolvers += "Sonatype OSS Release Repository" at "https://oss.sonatype.org/cont
 val version = "..."
 
 libraryDependencies += Seq(
-  "com.github.j5ik2o" %% "akka-persistence-kafka" % version
+  "pl.newicom" %% "akka-persistence-kafka" % version
 )
 ```
 
@@ -45,9 +45,9 @@ j5ik2o {
   kafka-journal {
     topic-prefix = "journal-"
     # if need customize, default is persistence-id
-    topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
+    topic-resolver-class-name = "pl.newicom.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partion 0
-    partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
+    partition-resolver-class-name = "pl.newicom.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
    
     producer {
       kafka-clients {
@@ -65,9 +65,9 @@ j5ik2o {
   kafka-snapshot-store {
     topic-prefix = "snapshot-"
     # if need customize, default is persistence-id
-    topic-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
+    topic-resolver-class-name = "pl.newicom.akka.persistence.kafka.resolver.KafkaTopicResolver$PersistenceId"
     # if need customize, default is partition 0
-    partition-resolver-class-name = "com.github.j5ik2o.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
+    partition-resolver-class-name = "pl.newicom.akka.persistence.kafka.resolver.KafkaPartitionResolver$PartitionZero"
 
     producer {
       kafka-clients {

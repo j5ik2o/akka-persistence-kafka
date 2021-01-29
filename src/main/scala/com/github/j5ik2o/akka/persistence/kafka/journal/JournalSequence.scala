@@ -14,13 +14,13 @@ class JournalSequence(
     journalPartitionResolver: KafkaPartitionResolver
 ) {
 
-  def readLowestSequenceNrAsync(persistenceId: PersistenceId, fromSequenceNr: Option[Long] = None)(
-      implicit ec: ExecutionContext
+  def readLowestSequenceNrAsync(persistenceId: PersistenceId, fromSequenceNr: Option[Long] = None)(implicit
+      ec: ExecutionContext
   ): Future[Long] =
     Future { readLowestSequenceNr(persistenceId, fromSequenceNr) }
 
-  def readHighestSequenceNrAsync(persistenceId: PersistenceId, fromSequenceNr: Option[Long] = None)(
-      implicit ec: ExecutionContext
+  def readHighestSequenceNrAsync(persistenceId: PersistenceId, fromSequenceNr: Option[Long] = None)(implicit
+      ec: ExecutionContext
   ): Future[Long] =
     Future { readHighestSequenceNr(persistenceId, fromSequenceNr) }
 

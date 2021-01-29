@@ -5,13 +5,13 @@ resolvers ++= Seq(
 
 libraryDependencies ++= {
   Seq(
-    "com.thesamet.scalapb" %% "compilerplugin" % "0.10.2"
+    "com.thesamet.scalapb" %% "compilerplugin" % "0.10.8"
   )
 }
 
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.3.4")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.31")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.34")
 
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
 

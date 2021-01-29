@@ -78,34 +78,31 @@ class PersistentActorReplaySpec
     "should replay successfully, when using mulitiple persistenceIds in single kafka partition" in {
       val snapShotInterval = 5
       val maxActors        = 15
-      val idWithNames = for { idx <- 1 to maxActors } yield (
-        UUID.randomUUID(),
-        "test-" + UUID.randomUUID().toString,
-        idx
-      )
+      val idWithNames =
+        for { idx <- 1 to maxActors } yield (
+          UUID.randomUUID(),
+          "test-" + UUID.randomUUID().toString,
+          idx
+        )
       val modelName = "test"
-      val actorRefs = idWithNames.map {
-        case (id, name, idx) =>
-          (system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), name), id, name, idx)
+      val actorRefs = idWithNames.map { case (id, name, idx) =>
+        (system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), name), id, name, idx)
       }
 
-      actorRefs.foreach {
-        case (actorRef, id, name, idx) =>
-          actorRef ! CreateState(id, name, idx, self)
-          expectMsg((60 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds, CreateStateReply(id))
+      actorRefs.foreach { case (actorRef, id, name, idx) =>
+        actorRef ! CreateState(id, name, idx, self)
+        expectMsg((60 * sys.env.getOrElse("SBT_TEST_TIME_FACTOR", "1").toInt) seconds, CreateStateReply(id))
       }
 
-      actorRefs.foreach {
-        case (actorRef, _, _, _) =>
-          watch(actorRef)
-          system.stop(actorRef)
-          expectTerminated(actorRef)
+      actorRefs.foreach { case (actorRef, _, _, _) =>
+        watch(actorRef)
+        system.stop(actorRef)
+        expectTerminated(actorRef)
       }
 
-      actorRefs.foreach {
-        case (_, id, name, idx) =>
-          val rebootRef1 = system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), name)
-          getState(rebootRef1, id).amount shouldBe idx
+      actorRefs.foreach { case (_, id, name, idx) =>
+        val rebootRef1 = system.actorOf(Props(new TestActor(modelName, id, snapShotInterval)), name)
+        getState(rebootRef1, id).amount shouldBe idx
       }
     }
 
