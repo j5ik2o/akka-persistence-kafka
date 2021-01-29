@@ -21,12 +21,12 @@ trait EncryptionFilter {
 object EncryptionFilter {
 
   class NonEncryption extends EncryptionFilter {
-    override def encrypt(persistenceId: PersistenceId, bytes: Array[Byte], context: Map[String, AnyRef])(
-        implicit ec: ExecutionContext
+    override def encrypt(persistenceId: PersistenceId, bytes: Array[Byte], context: Map[String, AnyRef])(implicit
+        ec: ExecutionContext
     ): Future[Array[Byte]] = Future.successful(bytes)
 
-    override def decrypt(bytes: Array[Byte])(
-        implicit ec: ExecutionContext
+    override def decrypt(bytes: Array[Byte])(implicit
+        ec: ExecutionContext
     ): Future[Array[Byte]] = Future.successful(bytes)
   }
 
