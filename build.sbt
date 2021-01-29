@@ -3,7 +3,7 @@ val scala213Version     = "2.13.1"
 val akka25Version       = "2.5.30"
 val akka26Version       = "2.6.10"
 val kafkaVersion        = "2.6.0"
-val alpakkaKafkaVersion = "2.0.5"
+val alpakkaKafkaVersion = "2.0.6"
 
 val coreSettings = Seq(
   sonatypeProfileName := "pl.newicom",
